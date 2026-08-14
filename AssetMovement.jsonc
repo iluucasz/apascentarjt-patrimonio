@@ -1,0 +1,60 @@
+{
+  "name": "AssetMovement",
+  "type": "object",
+  "properties": {
+    "asset_id": {
+      "type": "string",
+      "title": "Patrim\u00f4nio (ID)"
+    },
+    "asset_number": {
+      "type": "string",
+      "title": "N\u00famero patrimonial"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Nome do patrim\u00f4nio"
+    },
+    "from_location_id": {
+      "type": "string",
+      "title": "Local de origem (ID)"
+    },
+    "from_location_name": {
+      "type": "string",
+      "title": "Local de origem"
+    },
+    "to_location_id": {
+      "type": "string",
+      "title": "Local de destino (ID)"
+    },
+    "to_location_name": {
+      "type": "string",
+      "title": "Local de destino"
+    },
+    "responsible_person": {
+      "type": "string",
+      "title": "Respons\u00e1vel"
+    },
+    "movement_type": {
+      "type": "string",
+      "enum": [
+        "transfer",
+        "loan",
+        "return",
+        "allocation"
+      ],
+      "default": "transfer",
+      "title": "Tipo de movimenta\u00e7\u00e3o"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00e3o"
+    },
+    "moved_by_name": {
+      "type": "string",
+      "title": "Movimentado por"
+    }
+  },
+  "required": [
+    "asset_id"
+  ]
+}

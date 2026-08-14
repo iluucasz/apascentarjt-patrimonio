@@ -1,0 +1,45 @@
+{
+  "name": "AssetDocument",
+  "type": "object",
+  "properties": {
+    "asset_id": {
+      "type": "string",
+      "title": "Patrim\u00f4nio (ID)"
+    },
+    "asset_number": {
+      "type": "string",
+      "title": "N\u00famero patrimonial"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nome do documento"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "nota_fiscal",
+        "manual",
+        "garantia",
+        "orcamento",
+        "documento",
+        "outros"
+      ],
+      "default": "documento",
+      "title": "Tipo"
+    },
+    "file_url": {
+      "type": "string",
+      "format": "file",
+      "title": "Arquivo"
+    },
+    "uploaded_by_name": {
+      "type": "string",
+      "title": "Enviado por"
+    }
+  },
+  "required": [
+    "asset_id",
+    "name",
+    "file_url"
+  ]
+}

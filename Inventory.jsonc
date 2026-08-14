@@ -1,0 +1,55 @@
+{
+  "name": "Inventory",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Nome do invent\u00e1rio"
+    },
+    "location_id": {
+      "type": "string",
+      "title": "Local (ID)"
+    },
+    "location_name": {
+      "type": "string",
+      "title": "Nome do local"
+    },
+    "all_locations": {
+      "type": "boolean",
+      "title": "Todos os locais",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "in_progress",
+        "completed",
+        "cancelled"
+      ],
+      "default": "draft",
+      "title": "Status"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Iniciado em"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Finalizado em"
+    },
+    "created_by_name": {
+      "type": "string",
+      "title": "Criado por"
+    },
+    "summary": {
+      "type": "object",
+      "title": "Resumo"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

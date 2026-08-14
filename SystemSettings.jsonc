@@ -1,0 +1,39 @@
+{
+  "name": "SystemSettings",
+  "type": "object",
+  "properties": {
+    "church_name": {
+      "type": "string",
+      "title": "Nome da igreja",
+      "default": "Minha Igreja"
+    },
+    "church_logo_url": {
+      "type": "string",
+      "format": "file",
+      "title": "Logo da igreja"
+    },
+    "asset_prefix": {
+      "type": "string",
+      "title": "Prefixo patrimonial",
+      "default": "PAT"
+    },
+    "next_asset_sequence": {
+      "type": "number",
+      "title": "Pr\u00f3xima sequ\u00eancia",
+      "default": 1
+    },
+    "digit_count": {
+      "type": "number",
+      "title": "Quantidade de d\u00edgitos",
+      "default": 6
+    },
+    "public_asset_lookup": {
+      "type": "boolean",
+      "title": "Consulta p\u00fablica por QR Code",
+      "default": false
+    }
+  },
+  "required": [
+    "church_name"
+  ]
+}

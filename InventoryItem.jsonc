@@ -1,0 +1,66 @@
+{
+  "name": "InventoryItem",
+  "type": "object",
+  "properties": {
+    "inventory_id": {
+      "type": "string",
+      "title": "Invent\u00e1rio (ID)"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "Patrim\u00f4nio (ID)"
+    },
+    "asset_number": {
+      "type": "string",
+      "title": "N\u00famero patrimonial"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Nome do patrim\u00f4nio"
+    },
+    "expected_location_id": {
+      "type": "string",
+      "title": "Local esperado (ID)"
+    },
+    "expected_location_name": {
+      "type": "string",
+      "title": "Local esperado"
+    },
+    "found_location_id": {
+      "type": "string",
+      "title": "Local encontrado (ID)"
+    },
+    "found_location_name": {
+      "type": "string",
+      "title": "Local encontrado"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "found",
+        "misplaced",
+        "not_found"
+      ],
+      "default": "pending",
+      "title": "Status"
+    },
+    "scanned_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Escaneado em"
+    },
+    "scanned_by_name": {
+      "type": "string",
+      "title": "Escaneado por"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "inventory_id",
+    "asset_id"
+  ]
+}

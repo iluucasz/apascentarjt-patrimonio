@@ -1,0 +1,126 @@
+{
+  "name": "Asset",
+  "type": "object",
+  "properties": {
+    "asset_number": {
+      "type": "string",
+      "title": "N\u00famero patrimonial"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nome do patrim\u00f4nio"
+    },
+    "description": {
+      "type": "string",
+      "title": "Descri\u00e7\u00e3o"
+    },
+    "category_id": {
+      "type": "string",
+      "title": "Categoria (ID)"
+    },
+    "category_name": {
+      "type": "string",
+      "title": "Nome da categoria"
+    },
+    "brand": {
+      "type": "string",
+      "title": "Marca"
+    },
+    "model": {
+      "type": "string",
+      "title": "Modelo"
+    },
+    "serial_number": {
+      "type": "string",
+      "title": "N\u00famero de s\u00e9rie"
+    },
+    "location_id": {
+      "type": "string",
+      "title": "Local (ID)"
+    },
+    "location_name": {
+      "type": "string",
+      "title": "Nome do local"
+    },
+    "responsible_person": {
+      "type": "string",
+      "title": "Respons\u00e1vel"
+    },
+    "acquisition_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data de aquisi\u00e7\u00e3o"
+    },
+    "acquisition_value": {
+      "type": "number",
+      "title": "Valor de aquisi\u00e7\u00e3o"
+    },
+    "supplier": {
+      "type": "string",
+      "title": "Fornecedor"
+    },
+    "invoice_number": {
+      "type": "string",
+      "title": "N\u00famero da nota fiscal"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "maintenance",
+        "loaned",
+        "storage",
+        "disposed",
+        "lost"
+      ],
+      "default": "active",
+      "title": "Status"
+    },
+    "condition": {
+      "type": "string",
+      "enum": [
+        "new",
+        "excellent",
+        "good",
+        "fair",
+        "poor",
+        "damaged"
+      ],
+      "default": "good",
+      "title": "Estado de conserva\u00e7\u00e3o"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00f5es"
+    },
+    "photo_url": {
+      "type": "string",
+      "format": "file",
+      "title": "Foto"
+    },
+    "archived_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Arquivado em"
+    },
+    "disposed_reason": {
+      "type": "string",
+      "enum": [
+        "descarte",
+        "venda",
+        "doacao",
+        "perda",
+        "roubo",
+        "outro"
+      ],
+      "title": "Motivo da baixa"
+    },
+    "disposed_notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00e3o da baixa"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

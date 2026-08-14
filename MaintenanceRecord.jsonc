@@ -1,0 +1,63 @@
+{
+  "name": "MaintenanceRecord",
+  "type": "object",
+  "properties": {
+    "asset_id": {
+      "type": "string",
+      "title": "Patrim\u00f4nio (ID)"
+    },
+    "asset_number": {
+      "type": "string",
+      "title": "N\u00famero patrimonial"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Nome do patrim\u00f4nio"
+    },
+    "description": {
+      "type": "string",
+      "title": "Descri\u00e7\u00e3o do problema"
+    },
+    "provider": {
+      "type": "string",
+      "title": "Empresa/T\u00e9cnico"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data de in\u00edcio"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data de t\u00e9rmino"
+    },
+    "cost": {
+      "type": "number",
+      "title": "Custo"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "in_progress",
+        "completed",
+        "cancelled"
+      ],
+      "default": "open",
+      "title": "Status"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00f5es"
+    },
+    "created_by_name": {
+      "type": "string",
+      "title": "Registrado por"
+    }
+  },
+  "required": [
+    "asset_id",
+    "description"
+  ]
+}
