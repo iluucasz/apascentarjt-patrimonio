@@ -1,36 +1,42 @@
-const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me: async()=>null }, entities:new Proxy({}, { get:()=>({ filter:async()=>[], get:async()=>null, create:async()=>({}), update:async()=>({}), delete:async()=>({}) }) }), integrations:{ Core:{ UploadFile:async()=>({ file_url:'' }) } } };
-
 # AGENTS.md
 
-## Project Context
+## Sobre o projeto
 
-This is a Base44 app repository. Treat it as user-owned application code, keep changes focused on the user's request, and preserve existing project conventions.
+Gestão Patrimonial é um app React (Vite) para controle de patrimônio de igrejas/organizações:
+cadastro de bens com numeração automática, QR Code/código de barras, inventários por local,
+movimentações, manutenções e permissões por papel (admin / manager / user).
 
-Start with `README.md` for local setup, environment variables, and publish workflow.
+## Stack
 
-## Base44 References
+- React 18 + React Router + Vite
+- Tailwind CSS + Radix UI (componentes em `src/components/ui`, padrão shadcn/ui)
+- TanStack Query para cache de dados assíncronos
+- Backend: **mock local em `localStorage`** (`src/lib/db.js`) — não há servidor. Ver
+  "Backend local" no `README.md` antes de mexer em autenticação ou persistência de dados.
 
-- CLI overview: https://docs.db.com/developers/references/cli/get-started/overview.md
-- Agent skills: https://docs.db.com/developers/backend/overview/skills.md
+## Estrutura
 
-If your agent supports Agent Skills, install or update Base44 skills before Base44-specific work:
+- `src/pages/`: uma página por rota registrada em `src/App.jsx`.
+- `src/components/`: componentes compartilhados entre páginas (`Layout`, `PageHeader`, etc.).
+- `src/components/ui/`: primitivos de UI (shadcn/ui) — evite editar sem necessidade real.
+- `src/lib/`: utilitários (`format.js`, `permissions.js`, `utils.js`), contexto de auth/app
+  (`AuthContext.jsx`, `AppContext.jsx`) e o backend local (`db.js`).
+- `src/hooks/`: hooks compartilhados.
+- `docs/entities/`: schema (JSON) de cada entidade de dados — referência do modelo, não é
+  importado por código.
+
+## Convenções
+
+- Import absoluto via alias `@/` → `src/` (configurado em `jsconfig.json` e `vite.config.js`).
+- Todo acesso a dados/autenticação passa por `db` (`import { db } from '@/lib/db'`), nunca
+  acesse `localStorage` diretamente fora de `src/lib/db.js`.
+- UI e mensagens de usuário em português (pt-BR); nomes de variáveis/funções em inglês.
+
+## Rodando localmente
 
 ```bash
-npx skills add base44/skills
+npm install
+npm run dev
 ```
 
-## Key Files
-
-- `src/`: frontend application source.
-- `src/api/base44Client.js`: frontend Base44 SDK client.
-- `vite.config.js`: Vite config and Base44 Vite plugin setup.
-- `.env.local`: local-only environment values; never commit secrets.
-
-## Working Notes
-
-- Use `base44 dev` as the default local development command when you need the local Base44 backend. It can run the backend and frontend together.
-- When docs or code mention the frontend being started automatically, that usually means the Base44 project config includes `site.serveCommand`, for example `"serveCommand": "npm run dev"` in `base44/config.jsonc`.
-- Use `npm run dev` only for frontend-only work against the hosted Base44 backend.
-- Prefer the existing Base44 CLI workflow over adding new npm scripts for Base44-specific tasks.
-- Reuse the existing SDK client and Vite plugin patterns before adding new Base44 integration paths.
-- Run the relevant checks from `package.json` before finishing code changes.
+Rode `npm run lint` e `npm run typecheck` antes de finalizar mudanças.

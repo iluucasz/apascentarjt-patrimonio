@@ -1,79 +1,54 @@
-const db = globalThis.__B44_DB__ || { auth:{ isAuthenticated: async()=>false, me: async()=>null }, entities:new Proxy({}, { get:()=>({ filter:async()=>[], get:async()=>null, create:async()=>({}), update:async()=>({}), delete:async()=>({}) }) }), integrations:{ Core:{ UploadFile:async()=>({ file_url:'' }) } } };
+# Gestão Patrimonial
 
-# Base44 Project
+App para controle de patrimônio: cadastro de bens com numeração automática, QR Code e
+código de barras para etiquetas, inventários por local, movimentações, manutenções e
+gestão de usuários por papel (administrador / gestor / leitor).
 
-Use this repository to run and edit the app locally, then publish changes back through db.
-
-Any change pushed to the repo will also be reflected in the Base44 Builder.
-
-## Prerequisites
-
-1. Clone the repository using the project's Git URL.
-2. Navigate to the project directory.
-3. Install dependencies: `npm install`.
-4. Install the Base44 CLI: `npm install -g base44@latest`.
-
-See the [Base44 CLI docs](https://docs.db.com/developers/references/cli/get-started/overview) if you want to run Base44 commands directly.
-
-## Run Locally
-
-Run the full local development environment from the project root:
+## Rodando o projeto
 
 ```bash
-base44 dev
-```
-
-`base44 dev` starts the local Base44 development backend and, when this app is configured for it, also starts the frontend dev server for you. Use the frontend URL printed by the command.
-
-For example, when the Base44 project config includes a `serveCommand`, `base44 dev` can launch the frontend too:
-
-```json5
-{
-  "site": {
-    "serveCommand": "npm run dev"
-  }
-}
-```
-
-In a Base44 project this lives in `base44/config.jsonc`.
-
-## Run Only The Frontend
-
-If you only want to work on the frontend against the hosted Base44 backend, run:
-
-```bash
+npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite.
+Abra a URL impressa pelo Vite (normalmente `http://localhost:5173`).
 
-## Use The Hosted Backend
-
-For frontend-only development, create or update `.env.local` in the project root:
+Outros comandos:
 
 ```bash
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=https://your-app.db.app
+npm run build      # build de produção em dist/
+npm run preview    # serve o build de produção localmente
+npm run lint        # eslint
+npm run typecheck   # checagem de tipos via jsconfig.json
 ```
 
-`VITE_BASE44_APP_ID` identifies the Base44 app.
+## Backend local
 
-`VITE_BASE44_APP_BASE_URL` tells the Base44 Vite plugin where to send local `/api` requests. Point it at your deployed Base44 app URL when you want the local frontend to use the hosted backend.
+Este projeto **não depende de nenhum servidor**. Todos os dados (usuários, patrimônios,
+categorias, locais, inventários, etc.) ficam salvos em `localStorage`, no seu navegador,
+via `src/lib/db.js`. Isso significa:
 
-When you use `base44 dev`, the command injects the local Base44 values for you, so `.env.local` is mainly needed for frontend-only workflows.
+- Os dados não são compartilhados entre navegadores/dispositivos diferentes.
+- Limpar os dados do site no navegador apaga tudo.
+- Login com Google não está disponível (o botão mostra um aviso).
+- Não existe envio de e-mail: o código de verificação de cadastro e o link de redefinição
+  de senha aparecem diretamente na tela, em vez de chegarem por e-mail.
+- O primeiro usuário cadastrado vira administrador automaticamente; os seguintes entram
+  como leitor.
 
-## Publish Your Changes
+Isso é suficiente para usar o app sozinho ou testar o fluxo completo. Para uso real com
+várias pessoas/dispositivos, `src/lib/db.js` precisa ser substituído por um backend de
+verdade (ex: Supabase, Firebase, API própria) — a interface (`db.auth`, `db.entities.*`)
+foi mantida simples de propósito para facilitar essa troca sem reescrever as telas.
 
-After pushing your changes to git, open the Base44 dashboard and publish the app:
+## Estrutura do projeto
 
-```bash
-base44 dashboard open
 ```
-
-## Docs & Support
-
-Documentation: [https://docs.db.com/Integrations/Using-GitHub](https://docs.db.com/Integrations/Using-GitHub)
-
-Base44 CLI command reference: [https://docs.db.com/developers/references/cli/commands/introduction](https://docs.db.com/developers/references/cli/commands/introduction)
-
-Support: [https://app.db.com/support](https://app.db.com/support)
+src/
+  pages/        páginas roteadas (uma por rota em src/App.jsx)
+  components/   componentes compartilhados
+  components/ui/ primitivos de UI (shadcn/ui)
+  lib/          utilitários, contexto de auth/app, backend local (db.js)
+  hooks/        hooks compartilhados
+docs/entities/  schema de referência de cada entidade de dados
+```
