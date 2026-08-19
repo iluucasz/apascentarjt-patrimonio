@@ -22,24 +22,29 @@ npm run lint        # eslint
 npm run typecheck   # checagem de tipos via jsconfig.json
 ```
 
-## Backend local
+## Backend
 
-Este projeto **não depende de nenhum servidor**. Todos os dados (usuários, patrimônios,
-categorias, locais, inventários, etc.) ficam salvos em `localStorage`, no seu navegador,
-via `src/lib/db.js`. Isso significa:
+O app usa um backend real: **Neon Postgres** para dados e **Vercel Blob** para arquivos
+(fotos e documentos). O front-end (`src/lib/db.js`) fala com esse backend via HTTP, em
+`/api/*` — Vercel Functions em `api/`. A sessão de login é um cookie httpOnly assinado
+(JWT).
 
-- Os dados não são compartilhados entre navegadores/dispositivos diferentes.
-- Limpar os dados do site no navegador apaga tudo.
-- Login com Google não está disponível (o botão mostra um aviso).
-- Não existe envio de e-mail: o código de verificação de cadastro e o link de redefinição
-  de senha aparecem diretamente na tela, em vez de chegarem por e-mail.
-- O primeiro usuário cadastrado vira administrador automaticamente; os seguintes entram
-  como leitor.
+Ainda não existe envio de e-mail: o código de verificação de cadastro e o link de
+redefinição de senha aparecem diretamente na tela, em vez de chegarem por e-mail. O
+primeiro usuário cadastrado vira administrador automaticamente; os seguintes entram como
+leitor (podem ser promovidos em Usuários).
 
-Isso é suficiente para usar o app sozinho ou testar o fluxo completo. Para uso real com
-várias pessoas/dispositivos, `src/lib/db.js` precisa ser substituído por um backend de
-verdade (ex: Supabase, Firebase, API própria) — a interface (`db.auth`, `db.entities.*`)
-foi mantida simples de propósito para facilitar essa troca sem reescrever as telas.
+### Configuração
+
+1. Crie um `.env` na raiz com `DATABASE_URL` (Neon), `BLOB_READ_WRITE_TOKEN` (Vercel Blob)
+   e `AUTH_JWT_SECRET` (qualquer string longa aleatória, usada para assinar a sessão).
+2. Aplique o schema no banco: `npm run db:migrate` (roda `db/schema.sql`, idempotente).
+3. `npm run dev` — sobe o front (Vite) e a API local juntos (`concurrently`), com proxy de
+   `/api` para o servidor local em `scripts/dev-server.js`.
+
+Em produção, é feito deploy na Vercel: a pasta `api/` vira Functions automaticamente, sem
+precisar do `scripts/dev-server.js` (que existe só para rodar localmente sem depender do
+`vercel dev`/login na Vercel).
 
 ## Estrutura do projeto
 
@@ -48,7 +53,10 @@ src/
   pages/        páginas roteadas (uma por rota em src/App.jsx)
   components/   componentes compartilhados
   components/ui/ primitivos de UI (shadcn/ui)
-  lib/          utilitários, contexto de auth/app, backend local (db.js)
+  lib/          utilitários, contexto de auth/app, cliente da API (db.js)
   hooks/        hooks compartilhados
+api/            Vercel Functions: auth, entidades (CRUD), upload, função createAsset
+db/             schema.sql e script de migração (npm run db:migrate)
+scripts/        servidor de API local para desenvolvimento (sem depender da Vercel CLI)
 docs/entities/  schema de referência de cada entidade de dados
 ```

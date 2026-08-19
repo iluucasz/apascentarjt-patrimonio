@@ -11,8 +11,10 @@ movimentações, manutenções e permissões por papel (admin / manager / user).
 - React 18 + React Router + Vite
 - Tailwind CSS + Radix UI (componentes em `src/components/ui`, padrão shadcn/ui)
 - TanStack Query para cache de dados assíncronos
-- Backend: **mock local em `localStorage`** (`src/lib/db.js`) — não há servidor. Ver
-  "Backend local" no `README.md` antes de mexer em autenticação ou persistência de dados.
+- Backend: **Neon Postgres + Vercel Blob**, acessados via Vercel Functions em `api/`.
+  `src/lib/db.js` é um cliente HTTP fino que fala com `/api/*` mantendo a mesma interface
+  (`db.auth`, `db.entities.*`) usada pelas páginas. Ver "Backend" no `README.md` antes de
+  mexer em autenticação, schema ou persistência de dados.
 
 ## Estrutura
 
@@ -20,10 +22,15 @@ movimentações, manutenções e permissões por papel (admin / manager / user).
 - `src/components/`: componentes compartilhados entre páginas (`Layout`, `PageHeader`, etc.).
 - `src/components/ui/`: primitivos de UI (shadcn/ui) — evite editar sem necessidade real.
 - `src/lib/`: utilitários (`format.js`, `permissions.js`, `utils.js`), contexto de auth/app
-  (`AuthContext.jsx`, `AppContext.jsx`) e o backend local (`db.js`).
+  (`AuthContext.jsx`, `AppContext.jsx`) e o cliente da API (`db.js`).
 - `src/hooks/`: hooks compartilhados.
-- `docs/entities/`: schema (JSON) de cada entidade de dados — referência do modelo, não é
-  importado por código.
+- `api/`: Vercel Functions (Node/ESM) — `api/_lib/` tem os helpers compartilhados (db pool,
+  sessão/JWT, hashing, query builder de entidades); `api/entities/[entity]/` é o CRUD
+  genérico; `api/auth/`, `api/users/`, `api/functions/` e `api/upload.js` são as rotas
+  específicas.
+- `db/schema.sql`: schema do Postgres (rodar via `npm run db:migrate`).
+- `docs/entities/`: schema (JSON) de cada entidade de dados — referência do modelo; ver
+  `api/_lib/entities.js` para o mapeamento real de colunas/tabelas.
 
 ## Convenções
 
