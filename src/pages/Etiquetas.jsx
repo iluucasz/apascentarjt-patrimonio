@@ -182,35 +182,32 @@ const DIM = { '50x25': {w:50,h:25}, '50x30':{w:50,h:30}, '60x30':{w:60,h:30}, '7
 function LabelPreview({ asset, settings, appUrl, size, showName, showCategory, showLogo, showQR, showBarcode, showNumber, forPrint = false, scale = 1 }) {
   const dim = DIM[size] || DIM['50x30'];
   const qrUrl = `${appUrl}/p/${asset.asset_number}`;
+  // Ao ampliar (scale > 1), recalcula cada tamanho interno (fonte, QR,
+  // código de barras) na mesma proporção do tamanho da caixa — amplia de
+  // verdade em vez de dar "zoom" com CSS transform, que só deixava mais
+  // visível um estouro de texto que já existia (nome da igreja não cabia
+  // na altura fixa, só não aparecia por ser pequeno demais pra notar).
+  const s = forPrint ? 1 : scale;
   const style = forPrint
     ? { width: `${dim.w}mm`, height: `${dim.h}mm` }
-    : { width: `${dim.w * 3}px`, height: `${dim.h * 3}px` };
+    : { width: `${dim.w * 3 * s}px`, height: `${dim.h * 3 * s}px` };
 
-  const label = (
-    <div className="label bg-white text-black border border-slate-300 flex flex-col items-center justify-center" style={{ ...style, padding: '1mm' }}>
-      {showLogo && settings?.church_logo_url && <img src={settings.church_logo_url} alt="" className="h-3 object-contain" />}
-      <p className="text-[7px] font-bold leading-none text-center w-full truncate">{settings?.church_name || 'Igreja'}</p>
-      <div className="flex items-center gap-1">
-        {showQR && <AssetQRCode value={qrUrl} size={forPrint ? 40 : 36} />}
+  return (
+    <div
+      className="label bg-white text-black border border-slate-300 flex flex-col items-center justify-center overflow-hidden"
+      style={{ ...style, padding: '1mm' }}
+    >
+      {showLogo && settings?.church_logo_url && <img src={settings.church_logo_url} alt="" style={{ height: `${12 * s}px` }} className="object-contain" />}
+      <p style={{ fontSize: `${7 * s}px`, lineHeight: 1 }} className="font-bold text-center w-full truncate">{settings?.church_name || 'Igreja'}</p>
+      <div className="flex items-center" style={{ gap: `${4 * s}px` }}>
+        {showQR && <AssetQRCode value={qrUrl} size={forPrint ? 40 : 36 * s} />}
         <div className="flex flex-col items-center">
-          {showNumber && <p className="font-mono text-[8px] font-bold leading-none">{asset.asset_number}</p>}
-          {showName && <p className="text-[6px] leading-tight text-center max-w-[55px] truncate">{asset.name}</p>}
-          {showCategory && <p className="text-[6px] leading-tight">{asset.category_name}</p>}
+          {showNumber && <p style={{ fontSize: `${8 * s}px`, lineHeight: 1 }} className="font-mono font-bold">{asset.asset_number}</p>}
+          {showName && <p style={{ fontSize: `${6 * s}px`, lineHeight: 1.2, maxWidth: `${55 * s}px` }} className="text-center truncate">{asset.name}</p>}
+          {showCategory && <p style={{ fontSize: `${6 * s}px`, lineHeight: 1.2 }}>{asset.category_name}</p>}
         </div>
       </div>
-      {showBarcode && <AssetBarcode value={asset.asset_number} height={forPrint ? 18 : 28} fontSize={forPrint ? 6 : 8} width={forPrint ? 1 : 1} />}
-    </div>
-  );
-
-  if (scale === 1 || forPrint) return label;
-
-  // Amplia visualmente com transform (mantém os pixels internos fixos, só
-  // escala o resultado), e reserva o espaço já escalado pro layout não sobrepor.
-  return (
-    <div style={{ width: dim.w * 3 * scale, height: dim.h * 3 * scale }}>
-      <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-        {label}
-      </div>
+      {showBarcode && <AssetBarcode value={asset.asset_number} height={forPrint ? 18 : 28 * s} fontSize={forPrint ? 6 : 8 * s} width={forPrint ? 1 : Math.max(1, s)} />}
     </div>
   );
 }
