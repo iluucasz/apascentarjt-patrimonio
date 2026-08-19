@@ -79,22 +79,6 @@ const auth = {
     return request('/auth/login', { method: 'POST', body: { email, password } });
   },
 
-  async register({ email, password }) {
-    return request('/auth/register', { method: 'POST', body: { email, password } });
-  },
-
-  async verifyOtp({ email, otpCode }) {
-    return request('/auth/verify-otp', { method: 'POST', body: { email, otpCode } });
-  },
-
-  async resendOtp(email) {
-    return request('/auth/resend-otp', { method: 'POST', body: { email } });
-  },
-
-  async setToken() {
-    // Sessão é controlada por cookie httpOnly; mantido apenas por compatibilidade de interface.
-  },
-
   async resetPasswordRequest(email) {
     return request('/auth/reset-password-request', { method: 'POST', body: { email } });
   },
@@ -118,10 +102,6 @@ const auth = {
       // ignore malformed returnUrl
     }
     window.location.href = `/login${query}`;
-  },
-
-  async loginWithProvider() {
-    throw new Error('Login com Google não está disponível. Use e-mail e senha.');
   },
 };
 

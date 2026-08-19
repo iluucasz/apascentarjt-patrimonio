@@ -10,7 +10,6 @@ import { AppProvider } from '@/lib/AppContext';
 import { Toaster as SonnerToaster } from 'sonner';
 // Auth pages
 import Login from '@/pages/Login';
-import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 // App pages
@@ -45,7 +44,6 @@ const AuthenticatedApp = () => {
     <AppProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
