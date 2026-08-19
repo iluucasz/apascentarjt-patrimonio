@@ -8,6 +8,9 @@ export function canEditAsset(user) {
 export function canDisposeAsset(user) {
   return user && user.role === 'admin';
 }
+export function canDeleteAsset(user) {
+  return user && user.role === 'admin';
+}
 export function canManageUsers(user) {
   return user && user.role === 'admin';
 }

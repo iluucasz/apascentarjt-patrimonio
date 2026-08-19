@@ -72,7 +72,20 @@ async function handleById(req, res, pool, entity, id, user) {
   }
 
   if (req.method === 'DELETE') {
-    if (entity === 'User') return sendError(res, 403, 'Não permitido para usuários');
+    if (entity === 'User') {
+      if (user.role !== 'admin') return sendError(res, 403, 'Apenas administradores podem excluir usuários');
+      if (id === user.id) return sendError(res, 400, 'Você não pode excluir a própria conta');
+      const { rows: adminRows } = await pool.query(
+        "select count(*)::int as count from users where role = 'admin' and id != $1",
+        [id]
+      );
+      if (adminRows[0].count === 0) {
+        const { rows: targetRows } = await pool.query('select role from users where id = $1', [id]);
+        if (targetRows[0]?.role === 'admin') {
+          return sendError(res, 400, 'Não é possível excluir o último administrador');
+        }
+      }
+    }
     const result = await deleteEntity(pool, entity, id);
     return sendJson(res, 200, result);
   }

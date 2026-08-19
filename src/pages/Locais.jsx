@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
-import { MapPin, Plus, Pencil, Power } from 'lucide-react';
+import { MapPin, Plus, Pencil, Power, Trash2 } from 'lucide-react';
 
 export default function Locais() {
   const { locations, refresh } = useApp();
@@ -21,6 +22,8 @@ export default function Locais() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', description: '', parent_location_id: '' });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -53,6 +56,21 @@ export default function Locais() {
     catch (e) { toast.error('Erro'); }
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await db.entities.Location.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      await refresh();
+      toast.success('Local excluído');
+    } catch (e) {
+      toast.error('Erro ao excluir local');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Layout>
       <PageHeader title="Locais" description="Cadastre e organize os locais da igreja">
@@ -73,8 +91,9 @@ export default function Locais() {
                 <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{count(l.id)} patrim.</span>
               </div>
               <div className="flex gap-1 mt-3">
-                <Button size="sm" variant="ghost" onClick={() => openEdit(l)}><Pencil className="w-4 h-4" /></Button>
-                <Button size="sm" variant="ghost" onClick={() => toggleActive(l)}><Power className="w-4 h-4" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => openEdit(l)} title="Editar"><Pencil className="w-4 h-4" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => toggleActive(l)} title={l.active ? 'Desativar' : 'Ativar'}><Power className="w-4 h-4" /></Button>
+                <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-600" onClick={() => setDeleteTarget(l)} title="Excluir"><Trash2 className="w-4 h-4" /></Button>
               </div>
             </div>
           ))}
@@ -92,6 +111,16 @@ export default function Locais() {
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={save}>Salvar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Excluir local?"
+        description={`Tem certeza que deseja excluir "${deleteTarget?.name}"? ${deleteTarget ? count(deleteTarget.id) : 0} patrimônio(s) estão neste local e ficarão sem local. Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        loading={deleting}
+        onConfirm={confirmDelete}
+      />
     </Layout>
   );
 }

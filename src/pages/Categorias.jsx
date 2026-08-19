@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
-import { Tags, Plus, Pencil } from 'lucide-react';
+import { Tags, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export default function Categorias() {
   const { categories, refresh } = useApp();
@@ -20,6 +21,8 @@ export default function Categorias() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', description: '' });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     (async () => { try { setAssets(await db.entities.Asset.list('-updated_date', 1000)); } catch (e) {} })();
@@ -41,6 +44,21 @@ export default function Categorias() {
     } catch (e) { toast.error('Erro ao salvar'); }
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await db.entities.Category.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      await refresh();
+      toast.success('Categoria excluída');
+    } catch (e) {
+      toast.error('Erro ao excluir categoria');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Layout>
       <PageHeader title="Categorias" description="Organize os patrimônios por categoria">
@@ -59,7 +77,10 @@ export default function Categorias() {
                 </div>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{count(c.id)}</span>
               </div>
-              <Button size="sm" variant="ghost" className="mt-3" onClick={() => openEdit(c)}><Pencil className="w-4 h-4 mr-1" /> Editar</Button>
+              <div className="flex gap-1 mt-3">
+                <Button size="sm" variant="ghost" onClick={() => openEdit(c)}><Pencil className="w-4 h-4 mr-1" /> Editar</Button>
+                <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-600" onClick={() => setDeleteTarget(c)}><Trash2 className="w-4 h-4 mr-1" /> Excluir</Button>
+              </div>
             </div>
           ))}
         </div>
@@ -75,6 +96,16 @@ export default function Categorias() {
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={save}>Salvar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Excluir categoria?"
+        description={`Tem certeza que deseja excluir "${deleteTarget?.name}"? ${deleteTarget ? count(deleteTarget.id) : 0} patrimônio(s) usam essa categoria e ficarão sem categoria. Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        loading={deleting}
+        onConfirm={confirmDelete}
+      />
     </Layout>
   );
 }

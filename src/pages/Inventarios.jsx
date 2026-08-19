@@ -12,8 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
-import { ClipboardList, Plus } from 'lucide-react';
+import { ClipboardList, Plus, Trash2 } from 'lucide-react';
 import { formatDateTime, INVENTORY_STATUS_LABELS } from '@/lib/format';
 import { canCreateInventory } from '@/lib/permissions';
 
@@ -30,6 +31,8 @@ export default function Inventarios() {
   const [items, setItems] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', location_id: '', all_locations: false });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     try { setItems(await db.entities.Inventory.list('-created_date', 100)); }
@@ -56,6 +59,21 @@ export default function Inventarios() {
     } catch (e) { toast.error('Erro ao criar inventário'); }
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await db.entities.Inventory.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      await load();
+      toast.success('Inventário excluído');
+    } catch (e) {
+      toast.error('Erro ao excluir inventário');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Layout>
       <PageHeader title="Inventários" description="Realize conferências de patrimônio por local">
@@ -68,15 +86,22 @@ export default function Inventarios() {
       ) : (
         <div className="space-y-3">
           {items.map((inv) => (
-            <button key={inv.id} onClick={() => navigate(`/inventarios/${inv.id}`)} className="w-full text-left rounded-xl border border-border bg-card p-4 hover:bg-accent/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold">{inv.name}</p>
-                  <p className="text-sm text-muted-foreground">{inv.location_name || 'Todos os locais'} · {formatDateTime(inv.created_date)}</p>
+            <div key={inv.id} className="w-full rounded-xl border border-border bg-card p-4 hover:bg-accent/30 flex items-center gap-2">
+              <button onClick={() => navigate(`/inventarios/${inv.id}`)} className="flex-1 min-w-0 text-left">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">{inv.name}</p>
+                    <p className="text-sm text-muted-foreground">{inv.location_name || 'Todos os locais'} · {formatDateTime(inv.created_date)}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_STYLES[inv.status]}`}>{INVENTORY_STATUS_LABELS[inv.status]}</span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_STYLES[inv.status]}`}>{INVENTORY_STATUS_LABELS[inv.status]}</span>
-              </div>
-            </button>
+              </button>
+              {canCreateInventory(user) && (
+                <button onClick={() => setDeleteTarget(inv)} className="p-1.5 rounded hover:bg-accent text-rose-600 shrink-0" title="Excluir inventário">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -94,6 +119,16 @@ export default function Inventarios() {
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={create}>Criar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Excluir inventário?"
+        description={`Tem certeza que deseja excluir "${deleteTarget?.name}"? Todos os itens escaneados nele serão perdidos. Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        loading={deleting}
+        onConfirm={confirmDelete}
+      />
     </Layout>
   );
 }

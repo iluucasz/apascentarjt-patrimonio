@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
-import { Users, UserPlus, Pencil } from 'lucide-react';
+import { Users, UserPlus, Trash2 } from 'lucide-react';
 import { ROLE_LABELS } from '@/lib/permissions';
 import { formatDate } from '@/lib/format';
 
@@ -24,6 +25,8 @@ export default function Usuarios() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('user');
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     try { setUsers(await db.entities.User.list()); }
@@ -51,6 +54,21 @@ export default function Usuarios() {
   const changeRole = async (u, role) => {
     try { await db.entities.User.update(u.id, { role }); await load(); toast.success('Perfil atualizado'); }
     catch (e) { toast.error('Erro'); }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await db.entities.User.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      await load();
+      toast.success('Usuário excluído');
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao excluir usuário');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (user?.role !== 'admin') {
@@ -93,7 +111,13 @@ export default function Usuarios() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">{formatDate(u.created_date)}</td>
                   <td className="px-4 py-3 text-right">
-                    {u.role === 'admin' ? <span className="text-xs text-muted-foreground">Admin</span> : <Pencil className="w-4 h-4 inline text-muted-foreground" />}
+                    {u.id === user.id ? (
+                      <span className="text-xs text-muted-foreground">Você</span>
+                    ) : (
+                      <button onClick={() => setDeleteTarget(u)} className="p-1.5 rounded hover:bg-accent text-rose-600" title="Excluir usuário">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -114,6 +138,16 @@ export default function Usuarios() {
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={createUser} disabled={creating}>{creating ? 'Criando...' : 'Criar usuário'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Excluir usuário?"
+        description={`Tem certeza que deseja excluir "${deleteTarget?.email}"? Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        loading={deleting}
+        onConfirm={confirmDelete}
+      />
     </Layout>
   );
 }

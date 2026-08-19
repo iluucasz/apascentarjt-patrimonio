@@ -14,13 +14,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
 import AssetQRCode from '@/components/AssetQRCode';
 import AssetBarcode from '@/components/AssetBarcode';
 import PrintLabelPreview from '@/components/PrintLabelPreview';
 import { Image } from '@/components/ui/image';
 import { formatCurrency, formatDate, formatDateTime, MOVEMENT_LABELS, MAINTENANCE_LABELS, MAINTENANCE_STYLES, DISPOSED_REASON_LABELS, DOC_TYPE_LABELS } from '@/lib/format';
-import { canEditAsset, canDisposeAsset, canMoveAsset, canMaintainAsset, canViewFinancials } from '@/lib/permissions';
+import { canEditAsset, canDisposeAsset, canDeleteAsset, canMoveAsset, canMaintainAsset, canViewFinancials } from '@/lib/permissions';
 import { Pencil, ArrowLeftRight, Wrench, Archive, Printer, ImageIcon, FileText, Trash2, Download } from 'lucide-react';
 
 export default function AssetDetail() {
@@ -47,6 +48,9 @@ export default function AssetDetail() {
   const [printOpen, setPrintOpen] = useState(false);
   // doc upload
   const [docForm, setDocForm] = useState({ name: '', type: 'documento', file_url: '' });
+  // delete
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -148,6 +152,18 @@ export default function AssetDetail() {
     catch (e) { toast.error('Erro'); }
   };
 
+  const handleDeleteAsset = async () => {
+    setDeleting(true);
+    try {
+      await db.entities.Asset.delete(asset.id);
+      toast.success('Patrimônio excluído permanentemente');
+      navigate('/patrimonios');
+    } catch (e) {
+      toast.error('Erro ao excluir patrimônio');
+      setDeleting(false);
+    }
+  };
+
   if (notFound) {
     return <Layout><div className="text-center py-20"><p className="text-lg font-semibold">Patrimônio não encontrado</p><p className="text-muted-foreground mt-1">O código {assetNumber} não existe no sistema.</p><Button className="mt-4" onClick={() => navigate('/patrimonios')}>Voltar para patrimônios</Button></div></Layout>;
   }
@@ -163,6 +179,7 @@ export default function AssetDetail() {
         {canMaintainAsset(user) && <Button variant="outline" onClick={() => setMaintOpen(true)}><Wrench className="w-4 h-4 mr-2" /> Manutenção</Button>}
         {canEditAsset(user) && <Button variant="outline" onClick={() => navigate(`/patrimonios/${asset.id}/editar`)}><Pencil className="w-4 h-4 mr-2" /> Editar</Button>}
         {canDisposeAsset(user) && asset.status !== 'disposed' && <Button variant="destructive" onClick={() => setDisposeOpen(true)}><Archive className="w-4 h-4 mr-2" /> Dar baixa</Button>}
+        {canDeleteAsset(user) && <Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="w-4 h-4 mr-2" /> Excluir</Button>}
       </PageHeader>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -357,6 +374,16 @@ export default function AssetDetail() {
 
       {/* Print modal */}
       <PrintLabelModal open={printOpen} onOpenChange={setPrintOpen} asset={asset} qrUrl={qrUrl} />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Excluir patrimônio permanentemente?"
+        description={`Isso vai apagar "${asset.asset_number} · ${asset.name}" e todo o seu histórico (movimentações, manutenções, documentos e registros de inventário) para sempre. Use "Dar baixa" em vez disso se quiser apenas registrar que o item saiu de uso mantendo o histórico. Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir permanentemente"
+        loading={deleting}
+        onConfirm={handleDeleteAsset}
+      />
     </Layout>
   );
 }
