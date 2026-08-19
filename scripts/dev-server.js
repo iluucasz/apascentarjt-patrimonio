@@ -13,24 +13,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_DIR = path.join(__dirname, '..', 'api');
 const PORT = process.env.API_PORT || 3001;
 
-// Converte um segmento de pasta/arquivo no padrão de rota da Vercel:
-// [name] -> parametro dinamico ":name", [...name] -> catch-all "...name".
-function toSegment(name) {
-  if (name.startsWith('[...') && name.endsWith(']')) return `...${name.slice(4, -1)}`;
-  if (name.startsWith('[') && name.endsWith(']')) return `:${name.slice(1, -1)}`;
-  return name;
-}
-
 function walk(dir, segments = []) {
   const routes = [];
   for (const entry of readdirSync(dir)) {
     if (entry.startsWith('_')) continue;
     const full = path.join(dir, entry);
     if (statSync(full).isDirectory()) {
-      routes.push(...walk(full, [...segments, toSegment(entry)]));
+      const seg = entry.startsWith('[') && entry.endsWith(']') ? `:${entry.slice(1, -1)}` : entry;
+      routes.push(...walk(full, [...segments, seg]));
     } else if (entry.endsWith('.js')) {
       const name = entry.slice(0, -3);
-      const seg = name === 'index' ? null : toSegment(name);
+      const seg = name === 'index' ? null : (name.startsWith('[') && name.endsWith(']') ? `:${name.slice(1, -1)}` : name);
       routes.push({ segments: seg ? [...segments, seg] : segments, file: full });
     }
   }
@@ -43,22 +36,16 @@ function matchRoute(pathSegments) {
   let best = null;
   let bestLiteralCount = -1;
   for (const route of routes) {
-    const rs = route.segments;
-    const isCatchAll = rs.length > 0 && rs[rs.length - 1].startsWith('...');
-    if (isCatchAll ? pathSegments.length < rs.length : pathSegments.length !== rs.length) continue;
-
+    if (route.segments.length !== pathSegments.length) continue;
     const params = {};
     let ok = true;
     let literalCount = 0;
-    for (let i = 0; i < rs.length; i++) {
-      const seg = rs[i];
-      if (seg.startsWith('...')) {
-        params[seg.slice(3)] = pathSegments.slice(i).map(decodeURIComponent);
-      } else if (seg.startsWith(':')) {
-        params[seg.slice(1)] = decodeURIComponent(pathSegments[i]);
-      } else if (seg !== pathSegments[i]) {
-        ok = false; break;
+    for (let i = 0; i < route.segments.length; i++) {
+      const rs = route.segments[i];
+      if (rs.startsWith(':')) {
+        params[rs.slice(1)] = decodeURIComponent(pathSegments[i]);
       } else {
+        if (rs !== pathSegments[i]) { ok = false; break; }
         literalCount++;
       }
     }

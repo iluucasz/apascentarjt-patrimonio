@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { AssetStatusBadge } from '@/components/AssetBadges';
 import { toast } from 'sonner';
 import { ScanLine, Keyboard, RefreshCw, CheckCircle2, XCircle, PackagePlus, Loader2 } from 'lucide-react';
+import NovoPatrimonioDialog from '@/components/NovoPatrimonioDialog';
 
 export default function Scanner() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function Scanner() {
   const [manual, setManual] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [novoOpen, setNovoOpen] = useState(false);
   const scannerRef = useRef(null);
   const html5QrRef = useRef(null);
   const lastCodeRef = useRef('');
@@ -168,11 +170,13 @@ export default function Scanner() {
               <p className="text-sm text-muted-foreground mt-1">Código lido:</p>
               <p className="font-mono text-lg font-bold">{result.code}</p>
               <Button variant="outline" className="mt-4 w-full" onClick={() => { setResult(null); startScan(); }}><RefreshCw className="w-4 h-4 mr-2" /> Tentar novamente</Button>
-              <Button className="mt-2 w-full" onClick={() => navigate('/patrimonios/novo')}><PackagePlus className="w-4 h-4 mr-2" /> Cadastrar patrimônio</Button>
+              <Button className="mt-2 w-full" onClick={() => setNovoOpen(true)}><PackagePlus className="w-4 h-4 mr-2" /> Cadastrar patrimônio</Button>
             </div>
           )}
         </div>
       )}
+
+      <NovoPatrimonioDialog open={novoOpen} onOpenChange={setNovoOpen} />
     </Layout>
   );
 }

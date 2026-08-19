@@ -15,7 +15,6 @@ import ResetPassword from '@/pages/ResetPassword';
 // App pages
 import Dashboard from '@/pages/Dashboard';
 import Patrimonios from '@/pages/Patrimonios';
-import NovoPatrimonio from '@/pages/NovoPatrimonio';
 import EditarPatrimonio from '@/pages/EditarPatrimonio';
 import AssetDetail from '@/pages/AssetDetail';
 import Scanner from '@/pages/Scanner';
@@ -49,7 +48,6 @@ const AuthenticatedApp = () => {
         <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/patrimonios" element={<Patrimonios />} />
-          <Route path="/patrimonios/novo" element={<NovoPatrimonio />} />
           <Route path="/patrimonios/:id/editar" element={<EditarPatrimonio />} />
           <Route path="/p/:assetNumber" element={<AssetDetail />} />
           <Route path="/scanner" element={<Scanner />} />

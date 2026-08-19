@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { useApp } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
@@ -15,13 +15,13 @@ import { Package, Plus, Search, Eye, Pencil, ImageIcon } from 'lucide-react';
 import { formatDate, STATUS_LABELS } from '@/lib/format';
 import { Image } from '@/components/ui/image';
 import { canCreateAsset } from '@/lib/permissions';
+import NovoPatrimonioDialog from '@/components/NovoPatrimonioDialog';
 
 const PAGE_SIZE = 12;
 
 export default function Patrimonios() {
   const { categories, locations, user } = useApp();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [assets, setAssets] = useState(null);
   const [q, setQ] = useState(searchParams.get('q') || '');
   const [status, setStatus] = useState(searchParams.get('status') || 'all');
@@ -29,15 +29,16 @@ export default function Patrimonios() {
   const [location, setLocation] = useState('all');
   const [condition, setCondition] = useState('all');
   const [page, setPage] = useState(1);
+  const [novoOpen, setNovoOpen] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const list = await db.entities.Asset.list('-updated_date', 1000);
-        setAssets(list);
-      } catch (e) { setAssets([]); }
-    })();
-  }, []);
+  const load = async () => {
+    try {
+      const list = await db.entities.Asset.list('-updated_date', 1000);
+      setAssets(list);
+    } catch (e) { setAssets([]); }
+  };
+
+  useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
     if (!assets) return null;
@@ -62,7 +63,7 @@ export default function Patrimonios() {
     <Layout>
       <PageHeader title="Patrimônios" description={`${filtered ? filtered.length : 0} bens cadastrados`}>
         {canCreateAsset(user) && (
-          <Button onClick={() => navigate('/patrimonios/novo')}>
+          <Button onClick={() => setNovoOpen(true)}>
             <Plus className="w-4 h-4 mr-2" /> Novo patrimônio
           </Button>
         )}
@@ -175,6 +176,8 @@ export default function Patrimonios() {
           )}
         </>
       )}
+
+      <NovoPatrimonioDialog open={novoOpen} onOpenChange={setNovoOpen} onCreated={load} />
     </Layout>
   );
 }

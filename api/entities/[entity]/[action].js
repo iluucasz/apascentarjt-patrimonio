@@ -3,6 +3,12 @@
 // continuam as mesmas de antes, só a organização interna mudou (ver também
 // api/entities/[entity]/index.js, que cobre o POST de criação sem segmento
 // extra no caminho).
+//
+// Usa um segmento dinâmico simples ([action], não catch-all [...action]):
+// na Vercel, fora do Next.js, rotas catch-all não são resolvidas por essas
+// Functions (o parâmetro chega vazio e cai em 404) — só [nome] funciona.
+// Como list/filter/bulk/:id nunca têm mais de um segmento extra depois da
+// entidade, um segmento simples cobre todos os casos.
 
 import { getPool } from '../../_lib/db.js';
 import {
@@ -82,15 +88,13 @@ export default async function handler(req, res) {
   const user = await requireUser(req, res);
   if (!user) return;
 
-  const segments = Array.isArray(req.query.segments)
-    ? req.query.segments
-    : [req.query.segments].filter(Boolean);
+  const { action } = req.query;
   const pool = getPool();
 
-  if (segments.length === 1 && segments[0] === 'list') return handleList(req, res, pool, entity);
-  if (segments.length === 1 && segments[0] === 'filter') return handleFilter(req, res, pool, entity);
-  if (segments.length === 1 && segments[0] === 'bulk') return handleBulk(req, res, pool, entity);
-  if (segments.length === 1) return handleById(req, res, pool, entity, segments[0], user);
+  if (action === 'list') return handleList(req, res, pool, entity);
+  if (action === 'filter') return handleFilter(req, res, pool, entity);
+  if (action === 'bulk') return handleBulk(req, res, pool, entity);
+  if (action) return handleById(req, res, pool, entity, action, user);
 
   return sendError(res, 404, 'Rota não encontrada');
 }
