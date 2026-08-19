@@ -197,8 +197,8 @@ function LabelPreview({ asset, settings, appUrl, size, showName, showCategory, s
       className="label bg-white text-black border border-slate-300 flex flex-col items-center justify-center overflow-hidden"
       style={{ ...style, padding: '1mm' }}
     >
-      {showLogo && settings?.church_logo_url && <img src={settings.church_logo_url} alt="" style={{ height: `${12 * s}px` }} className="object-contain" />}
-      <p style={{ fontSize: `${7 * s}px`, lineHeight: 1 }} className="font-bold text-center w-full truncate">{settings?.church_name || 'Igreja'}</p>
+      {showLogo && settings?.church_logo_url && <img src={settings.church_logo_url} alt="" style={{ height: `${12 * s}px`, marginBottom: `${1 * s}px` }} className="object-contain" />}
+      <p style={{ fontSize: `${7 * s}px`, lineHeight: 1.3, marginBottom: `${1.5 * s}px` }} className="font-bold text-center w-full truncate">{settings?.church_name || 'Igreja'}</p>
       <div className="flex items-center" style={{ gap: `${4 * s}px` }}>
         {showQR && <AssetQRCode value={qrUrl} size={forPrint ? 40 : 36 * s} />}
         <div className="flex flex-col items-center">
