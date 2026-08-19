@@ -27,8 +27,8 @@ export default function Manutencoes() {
     try {
       await db.entities.MaintenanceRecord.update(m.id, { status: 'completed', end_date: new Date().toISOString().slice(0, 10) });
       if (m.asset_id) await db.entities.Asset.update(m.asset_id, { status: 'active' });
+      await load();
       toast.success('Manutenção concluída');
-      load();
     } catch (e) { toast.error('Erro'); }
   };
 

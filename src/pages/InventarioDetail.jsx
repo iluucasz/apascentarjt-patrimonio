@@ -65,8 +65,8 @@ export default function InventarioDetail() {
         status: 'pending'
       })));
       await db.entities.Inventory.update(id, { status: 'in_progress', started_at: new Date().toISOString() });
+      await load();
       toast.success('Inventário iniciado');
-      load();
     } catch (e) { toast.error('Erro ao iniciar'); }
   };
 
@@ -120,7 +120,7 @@ export default function InventarioDetail() {
       });
       setFeedback({ type: newStatus === 'found' ? 'found' : 'misplaced', code, asset, item });
       try { navigator.vibrate && navigator.vibrate(100); } catch(e){}
-      load();
+      await load();
     } catch (e) {
       setFeedback({ type: 'error', code });
     } finally {
@@ -166,8 +166,8 @@ export default function InventarioDetail() {
         await db.entities.InventoryItem.update(it.id, { status: 'not_found' });
       }
       await db.entities.Inventory.update(id, { status: 'completed', finished_at: new Date().toISOString(), summary: stats() });
+      await load();
       toast.success('Inventário finalizado');
-      load();
     } catch (e) { toast.error('Erro ao finalizar'); }
   };
 

@@ -42,14 +42,14 @@ export default function Locais() {
       } else {
         await db.entities.Location.create({ ...form, parent_location_name: parent?.name || '', active: true });
       }
-      toast.success('Local salvo');
       setOpen(false);
-      refresh();
+      await refresh();
+      toast.success('Local salvo');
     } catch (e) { toast.error('Erro ao salvar'); }
   };
 
   const toggleActive = async (l) => {
-    try { await db.entities.Location.update(l.id, { active: !l.active }); refresh(); toast.success('Atualizado'); }
+    try { await db.entities.Location.update(l.id, { active: !l.active }); await refresh(); toast.success('Atualizado'); }
     catch (e) { toast.error('Erro'); }
   };
 

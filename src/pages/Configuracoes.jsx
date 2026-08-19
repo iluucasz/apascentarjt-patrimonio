@@ -52,8 +52,8 @@ export default function Configuracoes() {
         digit_count: Number(form.digit_count) || 6,
         public_asset_lookup: form.public_asset_lookup
       });
+      await refresh();
       toast.success('Configurações salvas');
-      refresh();
     } catch (e) { toast.error('Erro ao salvar'); }
     finally { setSaving(false); }
   };

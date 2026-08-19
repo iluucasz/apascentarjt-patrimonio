@@ -12,7 +12,8 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
-    "db:migrate": "node --env-file=.env db/migrate.js"
+    "db:migrate": "node --env-file=.env db/migrate.js",
+    "db:seed-categories": "node --env-file=.env db/seed-categories.js"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.3",

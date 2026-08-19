@@ -79,10 +79,10 @@ export default function AssetDetail() {
       });
       await db.entities.Asset.update(asset.id, { location_id: moveForm.to_location_id, location_name: loc?.name || '' });
       await db.entities.AuditLog.create({ action: 'asset_move', entity_type: 'Asset', entity_id: asset.id, entity_label: asset.asset_number, user_name: user?.full_name || user?.email });
-      toast.success('Movimentação registrada');
       setMoveOpen(false);
       setMoveForm({ to_location_id: '', responsible_person: '', movement_type: 'transfer', notes: '' });
-      load();
+      await load();
+      toast.success('Movimentação registrada');
     } catch (e) { toast.error('Erro ao movimentar'); }
   };
 
@@ -97,10 +97,10 @@ export default function AssetDetail() {
       });
       await db.entities.Asset.update(asset.id, { status: 'maintenance' });
       await db.entities.AuditLog.create({ action: 'maintenance_start', entity_type: 'Asset', entity_id: asset.id, entity_label: asset.asset_number, user_name: user?.full_name || user?.email });
-      toast.success('Manutenção registrada');
       setMaintOpen(false);
       setMaintForm({ description: '', provider: '', start_date: '', cost: '', notes: '' });
-      load();
+      await load();
+      toast.success('Manutenção registrada');
     } catch (e) { toast.error('Erro ao registrar manutenção'); }
   };
 
@@ -108,8 +108,8 @@ export default function AssetDetail() {
     try {
       await db.entities.MaintenanceRecord.update(m.id, { status: 'completed', end_date: new Date().toISOString().slice(0, 10) });
       await db.entities.Asset.update(asset.id, { status: 'active' });
+      await load();
       toast.success('Manutenção concluída');
-      load();
     } catch (e) { toast.error('Erro'); }
   };
 
@@ -121,9 +121,9 @@ export default function AssetDetail() {
         disposed_reason: disposeForm.disposed_reason, disposed_notes: disposeForm.disposed_notes
       });
       await db.entities.AuditLog.create({ action: 'asset_dispose', entity_type: 'Asset', entity_id: asset.id, entity_label: asset.asset_number, new_data: disposeForm, user_name: user?.full_name || user?.email });
-      toast.success('Patrimônio baixado');
       setDisposeOpen(false);
-      load();
+      await load();
+      toast.success('Patrimônio baixado');
     } catch (e) { toast.error('Erro ao dar baixa'); }
   };
 
@@ -137,14 +137,14 @@ export default function AssetDetail() {
         name: docForm.name, type: docForm.type, file_url,
         uploaded_by_name: user?.full_name || user?.email
       });
-      toast.success('Documento anexado');
       setDocForm({ name: '', type: 'documento', file_url: '' });
-      load();
+      await load();
+      toast.success('Documento anexado');
     } catch (err) { toast.error('Erro ao anexar documento'); }
   };
 
   const deleteDoc = async (d) => {
-    try { await db.entities.AssetDocument.delete(d.id); toast.success('Documento removido'); load(); }
+    try { await db.entities.AssetDocument.delete(d.id); await load(); toast.success('Documento removido'); }
     catch (e) { toast.error('Erro'); }
   };
 

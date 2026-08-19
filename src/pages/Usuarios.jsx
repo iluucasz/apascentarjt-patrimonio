@@ -20,9 +20,10 @@ export default function Usuarios() {
   const { user } = useApp();
   const [users, setUsers] = useState(null);
   const [open, setOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('user');
-  const [editing, setEditing] = useState(null);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState('user');
+  const [creating, setCreating] = useState(false);
 
   const load = async () => {
     try { setUsers(await db.entities.User.list()); }
@@ -30,19 +31,25 @@ export default function Usuarios() {
   };
   useEffect(() => { load(); }, []);
 
-  const invite = async () => {
-    if (!inviteEmail) { toast.error('Informe o e-mail'); return; }
+  const createUser = async () => {
+    if (!newEmail || !newPassword) { toast.error('Informe e-mail e senha'); return; }
+    if (newPassword.length < 6) { toast.error('A senha deve ter pelo menos 6 caracteres'); return; }
+    setCreating(true);
     try {
-      await db.users.inviteUser(inviteEmail, inviteRole);
-      toast.success('Convite enviado');
+      await db.users.createUser(newEmail, newPassword, newRole);
       setOpen(false);
-      setInviteEmail(''); setInviteRole('user');
-      load();
-    } catch (e) { toast.error('Erro ao convidar'); }
+      setNewEmail(''); setNewPassword(''); setNewRole('user');
+      await load();
+      toast.success('Usuário criado');
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao criar usuário');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const changeRole = async (u, role) => {
-    try { await db.entities.User.update(u.id, { role }); toast.success('Perfil atualizado'); load(); }
+    try { await db.entities.User.update(u.id, { role }); await load(); toast.success('Perfil atualizado'); }
     catch (e) { toast.error('Erro'); }
   };
 
@@ -97,13 +104,14 @@ export default function Usuarios() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Convidar usuário</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>E-mail *</Label><Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="email@exemplo.com" /></div>
-            <div><Label>Perfil</Label><Select value={inviteRole} onValueChange={setInviteRole}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="user">Leitor / Inventariante</SelectItem><SelectItem value="manager">Gestor</SelectItem><SelectItem value="admin">Administrador</SelectItem></SelectContent></Select></div>
-            <p className="text-xs text-muted-foreground">O usuário receberá um convite por e-mail para definir a senha.</p>
+            <div><Label>E-mail *</Label><Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@exemplo.com" /></div>
+            <div><Label>Senha *</Label><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" /></div>
+            <div><Label>Perfil</Label><Select value={newRole} onValueChange={setNewRole}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="user">Leitor / Inventariante</SelectItem><SelectItem value="manager">Gestor</SelectItem><SelectItem value="admin">Administrador</SelectItem></SelectContent></Select></div>
+            <p className="text-xs text-muted-foreground">Não há envio de e-mail: compartilhe essa senha diretamente com a pessoa.</p>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={invite}>Enviar convite</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={createUser} disabled={creating}>{creating ? 'Criando...' : 'Criar usuário'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>

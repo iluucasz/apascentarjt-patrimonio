@@ -106,8 +106,8 @@ const auth = {
 };
 
 const users = {
-  async inviteUser(email, role) {
-    return request('/users/invite', { method: 'POST', body: { email, role } });
+  async createUser(email, password, role) {
+    return request('/users/create', { method: 'POST', body: { email, password, role } });
   },
 };
 

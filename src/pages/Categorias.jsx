@@ -35,9 +35,9 @@ export default function Categorias() {
     try {
       if (editing) await db.entities.Category.update(editing.id, form);
       else await db.entities.Category.create({ ...form, active: true });
-      toast.success('Categoria salva');
       setOpen(false);
-      refresh();
+      await refresh();
+      toast.success('Categoria salva');
     } catch (e) { toast.error('Erro ao salvar'); }
   };
 
