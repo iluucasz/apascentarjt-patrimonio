@@ -1,11 +1,12 @@
+// Um único arquivo para /api/functions/:name — dispatcher para as "funções de
+// negócio" nomeadas (equivalente ao antigo db.functions.invoke do mock). O
+// plano Hobby da Vercel limita a 12 Serverless Functions por deployment, e
+// isso deixa espaço para adicionar mais funções aqui sem criar novos arquivos.
+
 import { getPool } from '../_lib/db.js';
 import { methodNotAllowed, requireUser, sendError, sendJson } from '../_lib/http.js';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return methodNotAllowed(req, res, ['POST']);
-
-  const user = await requireUser(req, res);
-  if (!user) return;
+async function createAsset(req, res, user) {
   if (user.role !== 'admin' && user.role !== 'manager') {
     return sendError(res, 403, 'Sem permissão para cadastrar patrimônio');
   }
@@ -77,4 +78,20 @@ export default async function handler(req, res) {
   } finally {
     client.release();
   }
+}
+
+const FUNCTIONS = {
+  'create-asset': createAsset,
+};
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return methodNotAllowed(req, res, ['POST']);
+
+  const fn = FUNCTIONS[req.query.name];
+  if (!fn) return sendError(res, 404, `Função desconhecida: ${req.query.name}`);
+
+  const user = await requireUser(req, res);
+  if (!user) return;
+
+  return fn(req, res, user);
 }
