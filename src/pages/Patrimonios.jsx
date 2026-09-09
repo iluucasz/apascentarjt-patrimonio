@@ -1,26 +1,29 @@
 import { db } from '@/lib/db';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useApp } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
 import { AssetStatusBadge, AssetConditionBadge } from '@/components/AssetBadges';
 import EmptyState from '@/components/EmptyState';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Plus, Search, Eye, Pencil, ImageIcon, Layers } from 'lucide-react';
+import { Package, Plus, Search, Eye, Pencil, ImageIcon, Layers, Trash2 } from 'lucide-react';
 import { formatDate, STATUS_LABELS } from '@/lib/format';
 import { Image } from '@/components/ui/image';
-import { canCreateAsset } from '@/lib/permissions';
+import { canCreateAsset, canDeleteAsset } from '@/lib/permissions';
 import NovoPatrimonioDialog from '@/components/NovoPatrimonioDialog';
+import { toast } from 'sonner';
 
 const PAGE_SIZE = 12;
 
 export default function Patrimonios() {
   const { categories, locations, user } = useApp();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [assets, setAssets] = useState(null);
   const [q, setQ] = useState(searchParams.get('q') || '');
@@ -30,6 +33,9 @@ export default function Patrimonios() {
   const [condition, setCondition] = useState('all');
   const [page, setPage] = useState(1);
   const [novoOpen, setNovoOpen] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -85,6 +91,46 @@ export default function Patrimonios() {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const current = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  const toggle = (id) => setSelected((s) => {
+    const next = new Set(s);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const allCurrentSelected = current.length > 0 && current.every((r) => selected.has(r.id));
+  const toggleSelectAllCurrent = () => {
+    setSelected((s) => {
+      if (allCurrentSelected) {
+        const next = new Set(s);
+        current.forEach((r) => next.delete(r.id));
+        return next;
+      }
+      return new Set([...s, ...current.map((r) => r.id)]);
+    });
+  };
+
+  const selectedRows = rows.filter((r) => selected.has(r.id));
+  const selectedUnitsCount = selectedRows.reduce((sum, r) => sum + (r.isBatch ? r.count : 1), 0);
+  const selectedBatchCount = selectedRows.filter((r) => r.isBatch).length;
+
+  const handleDeleteSelected = async () => {
+    setDeleting(true);
+    try {
+      await Promise.all(selectedRows.map((r) => (
+        r.isBatch
+          ? db.functions.invoke('deleteAssetBatch', { batch_id: r.batch_id })
+          : db.entities.Asset.delete(r.id)
+      )));
+      toast.success('Patrimônios excluídos');
+      setSelected(new Set());
+      setDeleteOpen(false);
+      await load();
+    } catch (e) {
+      toast.error('Erro ao excluir');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Layout>
       <PageHeader title="Patrimônios" description={`${filtered ? filtered.length : 0} bens cadastrados`}>
@@ -131,11 +177,28 @@ export default function Patrimonios() {
         <EmptyState icon={Package} title="Nenhum patrimônio encontrado" description="Ajuste os filtros ou cadastre um novo patrimônio." />
       ) : (
         <>
+          {canDeleteAsset(user) && (
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <Button size="sm" variant="outline" onClick={() => setSelected(new Set(rows.map((r) => r.id)))}>Selecionar todos ({rows.length})</Button>
+              {selected.size > 0 && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>Limpar seleção</Button>
+                  <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+                    <Trash2 className="w-4 h-4 mr-1" /> Excluir selecionados ({selected.size})
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Desktop table */}
           <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
+                  {canDeleteAsset(user) && (
+                    <th className="px-4 py-3 w-8"><input type="checkbox" checked={allCurrentSelected} onChange={toggleSelectAllCurrent} /></th>
+                  )}
                   <th className="text-left font-medium px-4 py-3">Número</th>
                   <th className="text-left font-medium px-4 py-3">Patrimônio</th>
                   <th className="text-left font-medium px-4 py-3">Categoria</th>
@@ -149,7 +212,12 @@ export default function Patrimonios() {
               </thead>
               <tbody>
                 {current.map((a) => a.isBatch ? (
-                  <tr key={a.id} className="border-t border-border hover:bg-accent/30">
+                  <tr key={a.id} onClick={() => navigate(`/patrimonios/lote/${a.batch_id}`)} className="border-t border-border hover:bg-accent/30 cursor-pointer">
+                    {canDeleteAsset(user) && (
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"><Layers className="w-3.5 h-3.5" /> Lote</span>
                     </td>
@@ -166,14 +234,19 @@ export default function Patrimonios() {
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(a.updated_date)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <Link to={`/patrimonios/lote/${a.batch_id}`} className="p-1.5 rounded hover:bg-accent" title="Ver lote"><Eye className="w-4 h-4" /></Link>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  <tr key={a.id} className="border-t border-border hover:bg-accent/30">
+                  <tr key={a.id} onClick={() => navigate(`/p/${a.asset_number}`)} className="border-t border-border hover:bg-accent/30 cursor-pointer">
+                    {canDeleteAsset(user) && (
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-mono text-xs">{a.asset_number}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -188,7 +261,7 @@ export default function Patrimonios() {
                     <td className="px-4 py-3"><AssetStatusBadge status={a.status} /></td>
                     <td className="px-4 py-3"><AssetConditionBadge condition={a.condition} /></td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(a.updated_date)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <Link to={`/p/${a.asset_number}`} className="p-1.5 rounded hover:bg-accent" title="Visualizar"><Eye className="w-4 h-4" /></Link>
                         {canCreateAsset(user) && <Link to={`/patrimonios/${a.id}/editar`} className="p-1.5 rounded hover:bg-accent" title="Editar"><Pencil className="w-4 h-4" /></Link>}
@@ -240,6 +313,16 @@ export default function Patrimonios() {
       )}
 
       <NovoPatrimonioDialog open={novoOpen} onOpenChange={setNovoOpen} onCreated={load} />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Excluir ${selected.size} ${selected.size === 1 ? 'item selecionado' : 'itens selecionados'}?`}
+        description={`Isso vai apagar ${selectedUnitsCount} patrimônio${selectedUnitsCount === 1 ? '' : 's'}${selectedBatchCount > 0 ? ` (incluindo ${selectedBatchCount} lote${selectedBatchCount === 1 ? '' : 's'} inteiro${selectedBatchCount === 1 ? '' : 's'})` : ''} e todo o histórico deles (movimentações, manutenções, documentos e registros de inventário) para sempre. Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir permanentemente"
+        loading={deleting}
+        onConfirm={handleDeleteSelected}
+      />
     </Layout>
   );
 }
