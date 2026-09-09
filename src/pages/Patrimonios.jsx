@@ -11,7 +11,7 @@ import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Plus, Search, Eye, Pencil, ImageIcon } from 'lucide-react';
+import { Package, Plus, Search, Eye, Pencil, ImageIcon, Layers } from 'lucide-react';
 import { formatDate, STATUS_LABELS } from '@/lib/format';
 import { Image } from '@/components/ui/image';
 import { canCreateAsset } from '@/lib/permissions';
@@ -56,8 +56,34 @@ export default function Patrimonios() {
     });
   }, [assets, q, status, category, location, condition]);
 
-  const totalPages = filtered ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)) : 1;
-  const current = filtered ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : [];
+  // Unidades que vieram de um cadastro em lote (mesmo batch_id) viram uma
+  // única linha agrupada aqui — abrir a linha leva para /patrimonios/lote/:id
+  // com a lista completa, em vez de jogar centenas de linhas soltas na tabela.
+  const rows = useMemo(() => {
+    if (!filtered) return [];
+    const groups = new Map();
+    const result = [];
+    for (const a of filtered) {
+      if (!a.batch_id) { result.push(a); continue; }
+      let group = groups.get(a.batch_id);
+      if (!group) {
+        group = {
+          isBatch: true, id: a.batch_id, batch_id: a.batch_id, name: a.name,
+          category_name: a.category_name, location_name: a.location_name,
+          responsible_person: a.responsible_person, photo_url: a.photo_url,
+          updated_date: a.updated_date, count: 0,
+        };
+        groups.set(a.batch_id, group);
+        result.push(group);
+      }
+      group.count += 1;
+      if (a.updated_date > group.updated_date) group.updated_date = a.updated_date;
+    }
+    return result;
+  }, [filtered]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const current = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <Layout>
@@ -122,7 +148,31 @@ export default function Patrimonios() {
                 </tr>
               </thead>
               <tbody>
-                {current.map((a) => (
+                {current.map((a) => a.isBatch ? (
+                  <tr key={a.id} className="border-t border-border hover:bg-accent/30">
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"><Layers className="w-3.5 h-3.5" /> Lote</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {a.photo_url ? <Image src={a.photo_url} className="w-8 h-8 rounded object-cover" fittingType="fill" /> : <div className="w-8 h-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>}
+                        <span className="font-medium">{a.name}</span>
+                        <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5 shrink-0">{a.count} unidades</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.category_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.location_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.responsible_person || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(a.updated_date)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <Link to={`/patrimonios/lote/${a.batch_id}`} className="p-1.5 rounded hover:bg-accent" title="Ver lote"><Eye className="w-4 h-4" /></Link>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
                   <tr key={a.id} className="border-t border-border hover:bg-accent/30">
                     <td className="px-4 py-3 font-mono text-xs">{a.asset_number}</td>
                     <td className="px-4 py-3">
@@ -152,7 +202,18 @@ export default function Patrimonios() {
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
-            {current.map((a) => (
+            {current.map((a) => a.isBatch ? (
+              <Link key={a.id} to={`/patrimonios/lote/${a.batch_id}`} className="block rounded-xl border border-border bg-card p-3 active:bg-accent/30">
+                <div className="flex items-center gap-3">
+                  {a.photo_url ? <Image src={a.photo_url} className="w-12 h-12 rounded object-cover" fittingType="fill" /> : <div className="w-12 h-12 rounded bg-muted flex items-center justify-center"><Layers className="w-5 h-5 text-muted-foreground" /></div>}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Layers className="w-3 h-3" /> Lote · {a.count} unidades</p>
+                    <p className="font-medium truncate">{a.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.location_name || '-'}</p>
+                  </div>
+                </div>
+              </Link>
+            ) : (
               <Link key={a.id} to={`/p/${a.asset_number}`} className="block rounded-xl border border-border bg-card p-3 active:bg-accent/30">
                 <div className="flex items-center gap-3">
                   {a.photo_url ? <Image src={a.photo_url} className="w-12 h-12 rounded object-cover" fittingType="fill" /> : <div className="w-12 h-12 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>}
