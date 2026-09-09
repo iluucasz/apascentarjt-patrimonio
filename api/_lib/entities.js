@@ -56,6 +56,8 @@ export const ENTITIES = {
       archived_at: 'timestamptz',
       disposed_reason: 'text',
       disposed_notes: 'text',
+      variant: 'text',
+      batch_id: 'uuid',
     },
   },
   AssetMovement: {

@@ -71,10 +71,18 @@ create table if not exists assets (
   archived_at timestamptz,
   disposed_reason text check (disposed_reason in ('descarte', 'venda', 'doacao', 'perda', 'roubo', 'outro')),
   disposed_notes text not null default '',
+  variant text not null default '',
+  batch_id uuid,
   created_date timestamptz not null default now(),
   updated_date timestamptz not null default now()
 );
 create unique index if not exists assets_asset_number_key on assets (asset_number);
+-- Colunas adicionadas depois da criação inicial da tabela em produção:
+-- garantidas aqui também via alter, já que "create table if not exists" é
+-- no-op numa base que já tem a tabela.
+alter table assets add column if not exists variant text not null default '';
+alter table assets add column if not exists batch_id uuid;
+create index if not exists assets_batch_id_idx on assets (batch_id);
 
 create table if not exists asset_movements (
   id uuid primary key default gen_random_uuid(),

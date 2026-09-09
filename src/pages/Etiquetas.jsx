@@ -33,6 +33,7 @@ export default function Etiquetas() {
   const [showQR, setShowQR] = useState(true);
   const [showBarcode, setShowBarcode] = useState(true);
   const [showNumber, setShowNumber] = useState(true);
+  const [showVariant, setShowVariant] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const printRef = useRef(null);
 
@@ -42,8 +43,11 @@ export default function Etiquetas() {
         const list = await db.entities.Asset.list('-asset_number', 2000);
         setAssets(list.filter((a) => a.status !== 'disposed'));
         const idsParam = searchParams.get('ids');
+        const batchIdParam = searchParams.get('batch_id');
         if (idsParam) {
           setSelected(new Set(idsParam.split(',').filter(Boolean)));
+        } else if (batchIdParam) {
+          setSelected(new Set(list.filter((a) => a.batch_id === batchIdParam).map((a) => a.id)));
         }
       } catch (e) { setAssets([]); }
     })();
@@ -89,7 +93,7 @@ export default function Etiquetas() {
   return (
     <Layout>
       <div className="hidden print:block" ref={printRef}>
-        <PrintSheet assets={selectedAssets} settings={settings} appUrl={appUrl} size={size} showName={showName} showCategory={showCategory} showLogo={showLogo} showQR={showQR} showBarcode={showBarcode} showNumber={showNumber} />
+        <PrintSheet assets={selectedAssets} settings={settings} appUrl={appUrl} size={size} showName={showName} showCategory={showCategory} showLogo={showLogo} showQR={showQR} showBarcode={showBarcode} showNumber={showNumber} showVariant={showVariant} />
       </div>
 
       <PageHeader title="Etiquetas" description="Selecione patrimônios e gere etiquetas para impressão">
@@ -122,7 +126,7 @@ export default function Etiquetas() {
                     {selected.has(a.id) ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-muted-foreground" />}
                   </button>
                   <span className="font-mono text-xs w-24">{a.asset_number}</span>
-                  <span className="text-sm flex-1 truncate">{a.name}</span>
+                  <span className="text-sm flex-1 truncate">{a.name}{a.variant && <span className="text-muted-foreground"> · {a.variant}</span>}</span>
                   <span className="text-xs text-muted-foreground hidden sm:block">{a.category_name} · {a.location_name}</span>
                 </div>
               ))}
@@ -140,6 +144,7 @@ export default function Etiquetas() {
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showBarcode} onChange={(e) => setShowBarcode(e.target.checked)} /> Código de barras</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showNumber} onChange={(e) => setShowNumber(e.target.checked)} /> Número</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Nome do patrimônio</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showVariant} onChange={(e) => setShowVariant(e.target.checked)} /> Variante</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showCategory} onChange={(e) => setShowCategory(e.target.checked)} /> Categoria</label>
             </div>
           </div>
@@ -154,7 +159,7 @@ export default function Etiquetas() {
             </div>
             <div className="flex justify-center">
               {selectedAssets[0] ? (
-                <LabelPreview asset={selectedAssets[0]} settings={settings} appUrl={appUrl} size={size} showName={showName} showCategory={showCategory} showLogo={showLogo} showQR={showQR} showBarcode={showBarcode} showNumber={showNumber} />
+                <LabelPreview asset={selectedAssets[0]} settings={settings} appUrl={appUrl} size={size} showName={showName} showCategory={showCategory} showLogo={showLogo} showQR={showQR} showBarcode={showBarcode} showNumber={showNumber} showVariant={showVariant} />
               ) : (
                 <p className="text-sm text-muted-foreground">Selecione um patrimônio</p>
               )}
@@ -168,7 +173,7 @@ export default function Etiquetas() {
           <DialogHeader><DialogTitle>Preview da etiqueta</DialogTitle></DialogHeader>
           <div className="flex justify-center py-6 overflow-auto">
             {selectedAssets[0] && (
-              <LabelPreview asset={selectedAssets[0]} settings={settings} appUrl={appUrl} size={size} showName={showName} showCategory={showCategory} showLogo={showLogo} showQR={showQR} showBarcode={showBarcode} showNumber={showNumber} scale={4} />
+              <LabelPreview asset={selectedAssets[0]} settings={settings} appUrl={appUrl} size={size} showName={showName} showCategory={showCategory} showLogo={showLogo} showQR={showQR} showBarcode={showBarcode} showNumber={showNumber} showVariant={showVariant} scale={4} />
             )}
           </div>
         </DialogContent>
@@ -179,7 +184,7 @@ export default function Etiquetas() {
 
 const DIM = { '50x25': {w:50,h:25}, '50x30':{w:50,h:30}, '60x30':{w:60,h:30}, '70x30':{w:70,h:30} };
 
-function LabelPreview({ asset, settings, appUrl, size, showName, showCategory, showLogo, showQR, showBarcode, showNumber, forPrint = false, scale = 1 }) {
+function LabelPreview({ asset, settings, appUrl, size, showName, showCategory, showLogo, showQR, showBarcode, showNumber, showVariant, forPrint = false, scale = 1 }) {
   const dim = DIM[size] || DIM['50x30'];
   const qrUrl = `${appUrl}/p/${asset.asset_number}`;
   // Ao ampliar (scale > 1), recalcula cada tamanho interno (fonte, QR,
@@ -204,6 +209,7 @@ function LabelPreview({ asset, settings, appUrl, size, showName, showCategory, s
         <div className="flex flex-col items-center">
           {showNumber && <p style={{ fontSize: `${8 * s}px`, lineHeight: 1 }} className="font-mono font-bold">{asset.asset_number}</p>}
           {showName && <p style={{ fontSize: `${6 * s}px`, lineHeight: 1.2, maxWidth: `${55 * s}px` }} className="text-center truncate">{asset.name}</p>}
+          {showVariant && asset.variant && <p style={{ fontSize: `${6 * s}px`, lineHeight: 1.2, maxWidth: `${55 * s}px` }} className="text-center truncate font-semibold">{asset.variant}</p>}
           {showCategory && <p style={{ fontSize: `${6 * s}px`, lineHeight: 1.2 }}>{asset.category_name}</p>}
         </div>
       </div>

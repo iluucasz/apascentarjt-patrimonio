@@ -49,7 +49,7 @@ export default function Patrimonios() {
       if (location !== 'all' && a.location_id !== location) return false;
       if (condition !== 'all' && a.condition !== condition) return false;
       if (term) {
-        const hay = [a.asset_number, a.name, a.brand, a.model, a.serial_number, a.responsible_person].filter(Boolean).join(' ').toLowerCase();
+        const hay = [a.asset_number, a.name, a.variant, a.brand, a.model, a.serial_number, a.responsible_person].filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(term)) return false;
       }
       return true;
@@ -129,6 +129,7 @@ export default function Patrimonios() {
                       <div className="flex items-center gap-2">
                         {a.photo_url ? <Image src={a.photo_url} className="w-8 h-8 rounded object-cover" fittingType="fill" /> : <div className="w-8 h-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>}
                         <span className="font-medium">{a.name}</span>
+                        {a.variant && <span className="text-xs text-muted-foreground">· {a.variant}</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{a.category_name || '-'}</td>
@@ -157,7 +158,7 @@ export default function Patrimonios() {
                   {a.photo_url ? <Image src={a.photo_url} className="w-12 h-12 rounded object-cover" fittingType="fill" /> : <div className="w-12 h-12 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>}
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs text-muted-foreground">{a.asset_number}</p>
-                    <p className="font-medium truncate">{a.name}</p>
+                    <p className="font-medium truncate">{a.name}{a.variant && <span className="text-muted-foreground font-normal"> · {a.variant}</span>}</p>
                     <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.location_name || '-'}</p>
                   </div>
                   <AssetStatusBadge status={a.status} />

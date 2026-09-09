@@ -218,6 +218,7 @@ export default function AssetDetail() {
             <TabsContent value="info" className="mt-4">
               <div className="rounded-xl border border-border bg-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <Info label="Categoria" value={asset.category_name} />
+                {asset.variant && <Info label="Variante" value={asset.variant} />}
                 <Info label="Localização atual" value={asset.location_name} />
                 <Info label="Marca" value={asset.brand} />
                 <Info label="Modelo" value={asset.model} />

@@ -35,7 +35,8 @@ export default function EditarPatrimonio() {
           model: a.model || '', serial_number: a.serial_number || '', location_id: a.location_id || '',
           responsible_person: a.responsible_person || '', acquisition_date: a.acquisition_date || '',
           acquisition_value: a.acquisition_value || '', supplier: a.supplier || '', invoice_number: a.invoice_number || '',
-          condition: a.condition || 'good', status: a.status || 'active', notes: a.notes || '', photo_url: a.photo_url || ''
+          condition: a.condition || 'good', status: a.status || 'active', notes: a.notes || '', photo_url: a.photo_url || '',
+          variant: a.variant || ''
         });
       } catch (e) { toast.error('Erro ao carregar'); }
     })();
@@ -86,6 +87,7 @@ export default function EditarPatrimonio() {
             <div className="md:col-span-2"><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} /></div>
             <div><Label>Marca</Label><Input value={form.brand} onChange={(e) => set('brand', e.target.value)} /></div>
             <div><Label>Modelo</Label><Input value={form.model} onChange={(e) => set('model', e.target.value)} /></div>
+            <div><Label>Variante</Label><Input value={form.variant} onChange={(e) => set('variant', e.target.value)} placeholder="Ex: Encosto azul" /></div>
             <div><Label>Número de série</Label><Input value={form.serial_number} onChange={(e) => set('serial_number', e.target.value)} /></div>
             <div><Label>Responsável</Label><Input value={form.responsible_person} onChange={(e) => set('responsible_person', e.target.value)} /></div>
             <div><Label>Data de aquisição</Label><Input type="date" value={form.acquisition_date} onChange={(e) => set('acquisition_date', e.target.value)} /></div>
