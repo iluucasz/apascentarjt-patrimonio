@@ -194,9 +194,55 @@ async function createAssetBatch(req, res, user) {
   }
 }
 
+async function deleteAssetBatch(req, res, user) {
+  if (user.role !== 'admin') {
+    return sendError(res, 403, 'Apenas administradores podem excluir patrimônios');
+  }
+
+  const payload = req.body || {};
+  const batch_id = payload.batch_id;
+  if (!batch_id) return sendError(res, 400, 'Informe o lote');
+  const ids = Array.isArray(payload.ids) ? payload.ids.filter(Boolean) : null;
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+
+    const { rows } = ids && ids.length > 0
+      ? await client.query('delete from assets where batch_id = $1 and id = any($2::uuid[]) returning id, asset_number', [batch_id, ids])
+      : await client.query('delete from assets where batch_id = $1 returning id, asset_number', [batch_id]);
+    const count = rows.length;
+
+    if (count > 0) {
+      await client.query(
+        `insert into audit_logs (action, entity_type, entity_id, entity_label, new_data, user_name)
+         values ($1,$2,$3,$4,$5,$6)`,
+        [
+          'asset_batch_delete',
+          'Asset',
+          batch_id,
+          `lote (${count} unidade${count === 1 ? '' : 's'} excluída${count === 1 ? '' : 's'})`,
+          JSON.stringify({ batch_id, count, asset_numbers: rows.map((r) => r.asset_number) }),
+          user.full_name || user.email,
+        ]
+      );
+    }
+
+    await client.query('commit');
+    sendJson(res, 200, { data: { count } });
+  } catch (err) {
+    await client.query('rollback');
+    sendError(res, 500, err.message);
+  } finally {
+    client.release();
+  }
+}
+
 const FUNCTIONS = {
   'create-asset': createAsset,
   'create-asset-batch': createAssetBatch,
+  'delete-asset-batch': deleteAssetBatch,
 };
 
 export default async function handler(req, res) {

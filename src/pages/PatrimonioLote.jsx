@@ -3,20 +3,28 @@ import { db } from '@/lib/db';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 
+import { useApp } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { AssetStatusBadge, AssetConditionBadge } from '@/components/AssetBadges';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Package, Printer, Search, Eye, ArrowLeft } from 'lucide-react';
+import { Package, Printer, Search, Eye, ArrowLeft, Trash2 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+import { canDeleteAsset } from '@/lib/permissions';
+import { toast } from 'sonner';
 
 export default function PatrimonioLote() {
   const { batchId } = useParams();
   const navigate = useNavigate();
+  const { user } = useApp();
   const [units, setUnits] = useState(null);
   const [q, setQ] = useState('');
+  const [selected, setSelected] = useState(new Set());
+  const [deleteScope, setDeleteScope] = useState(null); // 'selected' | 'all'
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -44,6 +52,45 @@ export default function PatrimonioLote() {
     return units.filter((u) => [u.asset_number, u.variant, u.location_name].filter(Boolean).join(' ').toLowerCase().includes(term));
   }, [units, q]);
 
+  const toggle = (id) => setSelected((s) => {
+    const next = new Set(s);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const allFilteredSelected = filtered.length > 0 && filtered.every((u) => selected.has(u.id));
+  const toggleSelectAllFiltered = () => {
+    setSelected((s) => {
+      if (allFilteredSelected) {
+        const next = new Set(s);
+        filtered.forEach((u) => next.delete(u.id));
+        return next;
+      }
+      return new Set([...s, ...filtered.map((u) => u.id)]);
+    });
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const payload = { batch_id: batchId };
+      if (deleteScope === 'selected') payload.ids = [...selected];
+      const res = await db.functions.invoke('deleteAssetBatch', payload);
+      const count = res.data.count;
+      toast.success(`${count} patrimônio${count === 1 ? '' : 's'} excluído${count === 1 ? '' : 's'}`);
+      if (deleteScope === 'all') {
+        navigate('/patrimonios');
+        return;
+      }
+      setUnits((prev) => prev.filter((u) => !selected.has(u.id)));
+      setSelected(new Set());
+      setDeleteScope(null);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao excluir');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (units === null) return <Layout><div className="h-40 rounded bg-muted animate-pulse" /></Layout>;
 
   if (units.length === 0) {
@@ -61,6 +108,9 @@ export default function PatrimonioLote() {
       <PageHeader title={first.name} description={`Lote com ${units.length} unidades`}>
         <Button variant="outline" onClick={() => navigate('/patrimonios')}><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Button>
         <Button onClick={() => navigate(`/etiquetas?batch_id=${batchId}`)}><Printer className="w-4 h-4 mr-2" /> Imprimir etiquetas</Button>
+        {canDeleteAsset(user) && (
+          <Button variant="destructive" onClick={() => setDeleteScope('all')}><Trash2 className="w-4 h-4 mr-2" /> Excluir lote inteiro</Button>
+        )}
       </PageHeader>
 
       <div className="rounded-xl border border-border bg-card p-4 mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -73,15 +123,35 @@ export default function PatrimonioLote() {
         </div>
       </div>
 
-      <div className="relative mb-4 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, variante, local..." className="pl-9" />
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="relative max-w-sm flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, variante, local..." className="pl-9" />
+        </div>
+        {canDeleteAsset(user) && (
+          <>
+            <Button size="sm" variant="outline" onClick={toggleSelectAllFiltered}>
+              {allFilteredSelected ? 'Desmarcar' : q ? 'Selecionar filtrados' : 'Selecionar todos'} ({filtered.length})
+            </Button>
+            {selected.size > 0 && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>Limpar seleção</Button>
+                <Button size="sm" variant="destructive" onClick={() => setDeleteScope('selected')}>
+                  <Trash2 className="w-4 h-4 mr-1" /> Excluir selecionados ({selected.size})
+                </Button>
+              </>
+            )}
+          </>
+        )}
       </div>
 
       <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
+              {canDeleteAsset(user) && (
+                <th className="px-4 py-3 w-8"><input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAllFiltered} /></th>
+              )}
               <th className="text-left font-medium px-4 py-3">Número</th>
               <th className="text-left font-medium px-4 py-3">Variante</th>
               <th className="text-left font-medium px-4 py-3">Local</th>
@@ -94,6 +164,9 @@ export default function PatrimonioLote() {
           <tbody>
             {filtered.map((u) => (
               <tr key={u.id} className="border-t border-border hover:bg-accent/30">
+                {canDeleteAsset(user) && (
+                  <td className="px-4 py-3"><input type="checkbox" checked={selected.has(u.id)} onChange={() => toggle(u.id)} /></td>
+                )}
                 <td className="px-4 py-3 font-mono text-xs">{u.asset_number}</td>
                 <td className="px-4 py-3">{u.variant || '-'}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.location_name || '-'}</td>
@@ -126,6 +199,18 @@ export default function PatrimonioLote() {
           </Link>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteScope}
+        onOpenChange={(v) => { if (!v) setDeleteScope(null); }}
+        title={deleteScope === 'all' ? 'Excluir lote inteiro?' : `Excluir ${selected.size} patrimônios?`}
+        description={deleteScope === 'all'
+          ? `Isso vai apagar as ${units.length} unidades deste lote ("${first.name}") e todo o histórico delas (movimentações, manutenções, documentos e registros de inventário) para sempre. Essa ação não pode ser desfeita.`
+          : `Isso vai apagar ${selected.size} unidade${selected.size === 1 ? '' : 's'} selecionada${selected.size === 1 ? '' : 's'} e todo o histórico delas para sempre. Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir permanentemente"
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </Layout>
   );
 }
