@@ -27,7 +27,7 @@ export default function Locais() {
 
   useEffect(() => {
     (async () => {
-      try { setAssets(await db.entities.Asset.list('-updated_date', 1000)); } catch (e) {}
+      try { setAssets(await db.entities.Asset.list('-updated_date')); } catch (e) {}
     })();
   }, []);
 

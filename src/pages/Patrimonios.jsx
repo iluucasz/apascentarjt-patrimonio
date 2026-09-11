@@ -39,7 +39,7 @@ export default function Patrimonios() {
 
   const load = async () => {
     try {
-      const list = await db.entities.Asset.list('-updated_date', 1000);
+      const list = await db.entities.Asset.list('-updated_date');
       setAssets(list);
     } catch (e) { setAssets([]); }
   };

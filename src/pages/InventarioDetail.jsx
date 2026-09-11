@@ -32,7 +32,7 @@ export default function InventarioDetail() {
       const list = await db.entities.Inventory.filter({ id });
       if (list.length === 0) { toast.error('Inventário não encontrado'); navigate('/inventarios'); return; }
       setInventory(list[0]);
-      setItems(await db.entities.InventoryItem.filter({ inventory_id: id }, 'asset_number', 1000));
+      setItems(await db.entities.InventoryItem.filter({ inventory_id: id }, 'asset_number'));
     } catch (e) {}
   };
   useEffect(() => { load(); }, [id]);
@@ -50,8 +50,8 @@ export default function InventarioDetail() {
     try {
       // snapshot of assets
       let assets;
-      if (inventory.all_locations) assets = await db.entities.Asset.list('-asset_number', 2000);
-      else assets = await db.entities.Asset.filter({ location_id: inventory.location_id }, '-asset_number', 2000);
+      if (inventory.all_locations) assets = await db.entities.Asset.list('-asset_number');
+      else assets = await db.entities.Asset.filter({ location_id: inventory.location_id }, '-asset_number');
       // exclude disposed
       assets = assets.filter((a) => a.status !== 'disposed');
       if (assets.length === 0) { toast.error('Nenhum patrimônio neste local'); return; }

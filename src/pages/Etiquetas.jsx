@@ -40,7 +40,7 @@ export default function Etiquetas() {
   useEffect(() => {
     (async () => {
       try {
-        const list = await db.entities.Asset.list('-asset_number', 2000);
+        const list = await db.entities.Asset.list('-asset_number');
         setAssets(list.filter((a) => a.status !== 'disposed'));
         const idsParam = searchParams.get('ids');
         const batchIdParam = searchParams.get('batch_id');

@@ -35,7 +35,7 @@ export default function Dashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const list = await db.entities.Asset.list('-created_date', 500);
+        const list = await db.entities.Asset.list('-created_date');
         setAssets(list);
       } catch (e) { setAssets([]); }
       try {

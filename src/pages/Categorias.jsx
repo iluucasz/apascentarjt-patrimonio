@@ -25,7 +25,7 @@ export default function Categorias() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    (async () => { try { setAssets(await db.entities.Asset.list('-updated_date', 1000)); } catch (e) {} })();
+    (async () => { try { setAssets(await db.entities.Asset.list('-updated_date')); } catch (e) {} })();
   }, []);
 
   const count = (catId) => assets.filter((a) => a.category_id === catId).length;
