@@ -11,9 +11,9 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { AssetStatusBadge, AssetConditionBadge } from '@/components/AssetBadges';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Package, Printer, Search, Eye, ArrowLeft, Trash2 } from 'lucide-react';
+import { Package, Printer, Search, Eye, ArrowLeft, Trash2, Pencil } from 'lucide-react';
 import { formatDate } from '@/lib/format';
-import { canDeleteAsset } from '@/lib/permissions';
+import { canDeleteAsset, canEditAsset } from '@/lib/permissions';
 import { toast } from 'sonner';
 
 export default function PatrimonioLote() {
@@ -107,6 +107,9 @@ export default function PatrimonioLote() {
     <Layout>
       <PageHeader title={first.name} description={`Lote com ${units.length} unidades`}>
         <Button variant="outline" onClick={() => navigate('/patrimonios')}><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Button>
+        {canEditAsset(user) && (
+          <Button variant="outline" onClick={() => navigate(`/patrimonios/lote/${batchId}/editar`)}><Pencil className="w-4 h-4 mr-2" /> Editar lote</Button>
+        )}
         <Button onClick={() => navigate(`/etiquetas?batch_id=${batchId}`)}><Printer className="w-4 h-4 mr-2" /> Imprimir etiquetas</Button>
         {canDeleteAsset(user) && (
           <Button variant="destructive" onClick={() => setDeleteScope('all')}><Trash2 className="w-4 h-4 mr-2" /> Excluir lote inteiro</Button>

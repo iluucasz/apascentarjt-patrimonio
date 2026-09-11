@@ -194,6 +194,89 @@ async function createAssetBatch(req, res, user) {
   }
 }
 
+async function updateAssetBatch(req, res, user) {
+  if (user.role !== 'admin' && user.role !== 'manager') {
+    return sendError(res, 403, 'Sem permissão para editar patrimônio');
+  }
+
+  const payload = req.body || {};
+  const batch_id = payload.batch_id;
+  if (!batch_id) return sendError(res, 400, 'Informe o lote');
+  if (!payload.name) return sendError(res, 400, 'Informe o nome do patrimônio');
+
+  const variantPhotos = Array.isArray(payload.variant_photos)
+    ? payload.variant_photos.map((v) => ({ variant: String(v?.variant ?? ''), photo_url: String(v?.photo_url ?? '') }))
+    : [];
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+
+    const sharedCols = [
+      'name', 'description', 'category_id', 'category_name', 'brand', 'model',
+      'location_id', 'location_name', 'responsible_person', 'acquisition_date',
+      'acquisition_value', 'supplier', 'invoice_number', 'notes',
+    ];
+    const sharedValues = [
+      payload.name,
+      payload.description || '',
+      payload.category_id || null,
+      payload.category_name || '',
+      payload.brand || '',
+      payload.model || '',
+      payload.location_id || null,
+      payload.location_name || '',
+      payload.responsible_person || '',
+      payload.acquisition_date || null,
+      payload.acquisition_value || 0,
+      payload.supplier || '',
+      payload.invoice_number || '',
+      payload.notes || '',
+    ];
+    const setClause = sharedCols.map((col, i) => `${col} = $${i + 2}`).join(', ');
+    // status/condition/serial_number ficam de fora de propósito: são estado por
+    // unidade (pode já ter divergido do lote original) e continuam editáveis
+    // individualmente em /patrimonios/:id/editar.
+    const { rows: updatedRows } = await client.query(
+      `update assets set ${setClause}, updated_date = now() where batch_id = $1 returning id`,
+      [batch_id, ...sharedValues]
+    );
+    if (updatedRows.length === 0) {
+      await client.query('rollback');
+      return sendError(res, 404, 'Lote não encontrado');
+    }
+
+    for (const vp of variantPhotos) {
+      await client.query(
+        'update assets set photo_url = $1, updated_date = now() where batch_id = $2 and variant = $3',
+        [vp.photo_url, batch_id, vp.variant]
+      );
+    }
+
+    await client.query(
+      `insert into audit_logs (action, entity_type, entity_id, entity_label, new_data, user_name)
+       values ($1,$2,$3,$4,$5,$6)`,
+      [
+        'asset_batch_update',
+        'Asset',
+        batch_id,
+        `${payload.name} (lote)`,
+        JSON.stringify({ batch_id, count: updatedRows.length }),
+        user.full_name || user.email,
+      ]
+    );
+
+    await client.query('commit');
+    sendJson(res, 200, { data: { count: updatedRows.length } });
+  } catch (err) {
+    await client.query('rollback');
+    sendError(res, 500, err.message);
+  } finally {
+    client.release();
+  }
+}
+
 async function deleteAssetBatch(req, res, user) {
   if (user.role !== 'admin') {
     return sendError(res, 403, 'Apenas administradores podem excluir patrimônios');
@@ -242,6 +325,7 @@ async function deleteAssetBatch(req, res, user) {
 const FUNCTIONS = {
   'create-asset': createAsset,
   'create-asset-batch': createAssetBatch,
+  'update-asset-batch': updateAssetBatch,
   'delete-asset-batch': deleteAssetBatch,
 };
 

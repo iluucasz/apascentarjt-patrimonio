@@ -17,6 +17,7 @@ import Dashboard from '@/pages/Dashboard';
 import Patrimonios from '@/pages/Patrimonios';
 import EditarPatrimonio from '@/pages/EditarPatrimonio';
 import PatrimonioLote from '@/pages/PatrimonioLote';
+import EditarLote from '@/pages/EditarLote';
 import AssetDetail from '@/pages/AssetDetail';
 import Scanner from '@/pages/Scanner';
 import Inventarios from '@/pages/Inventarios';
@@ -51,6 +52,7 @@ const AuthenticatedApp = () => {
           <Route path="/patrimonios" element={<Patrimonios />} />
           <Route path="/patrimonios/:id/editar" element={<EditarPatrimonio />} />
           <Route path="/patrimonios/lote/:batchId" element={<PatrimonioLote />} />
+          <Route path="/patrimonios/lote/:batchId/editar" element={<EditarLote />} />
           <Route path="/p/:assetNumber" element={<AssetDetail />} />
           <Route path="/scanner" element={<Scanner />} />
           <Route path="/inventarios" element={<Inventarios />} />
