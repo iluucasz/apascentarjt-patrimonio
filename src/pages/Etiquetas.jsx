@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { QrCode, Printer, CheckSquare, Square, Maximize2 } from 'lucide-react';
+import { QrCode, Printer, CheckSquare, Square, Maximize2, Search, Layers, ChevronDown, ChevronRight } from 'lucide-react';
 import AssetQRCode from '@/components/AssetQRCode';
 import AssetBarcode from '@/components/AssetBarcode';
 
@@ -22,6 +22,8 @@ export default function Etiquetas() {
   const { categories, locations, settings, user } = useApp();
   const [assets, setAssets] = useState(null);
   const [selected, setSelected] = useState(new Set());
+  const [expanded, setExpanded] = useState(new Set());
+  const [q, setQ] = useState('');
   const [fromNum, setFromNum] = useState('');
   const [toNum, setToNum] = useState('');
   const [filterCat, setFilterCat] = useState('all');
@@ -55,19 +57,58 @@ export default function Etiquetas() {
 
   const filtered = useMemo(() => {
     if (!assets) return [];
+    const term = q.trim().toLowerCase();
     return assets.filter((a) => {
       if (filterCat !== 'all' && a.category_id !== filterCat) return false;
       if (filterLoc !== 'all' && a.location_id !== filterLoc) return false;
       if (fromNum && a.asset_number < fromNum) return false;
       if (toNum && a.asset_number > toNum) return false;
+      if (term) {
+        const hay = [a.asset_number, a.name, a.variant, a.brand, a.model].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
       return true;
     });
-  }, [assets, filterCat, filterLoc, fromNum, toNum]);
+  }, [assets, filterCat, filterLoc, fromNum, toNum, q]);
+
+  // Unidades de um mesmo lote viram uma única linha selecionável (com opção
+  // de expandir) em vez de despejar centenas de linhas soltas na lista —
+  // do contrário fica impossível achar um lote ou patrimônio específico.
+  const rows = useMemo(() => {
+    const groups = new Map();
+    const result = [];
+    for (const a of filtered) {
+      if (!a.batch_id) { result.push(a); continue; }
+      let group = groups.get(a.batch_id);
+      if (!group) {
+        group = { isBatch: true, id: a.batch_id, batch_id: a.batch_id, name: a.name, category_name: a.category_name, location_name: a.location_name, units: [] };
+        groups.set(a.batch_id, group);
+        result.push(group);
+      }
+      group.units.push(a);
+    }
+    return result;
+  }, [filtered]);
 
   const toggle = (id) => {
     setSelected((s) => {
       const next = new Set(s);
       if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleExpand = (batchId) => setExpanded((s) => {
+    const next = new Set(s);
+    if (next.has(batchId)) next.delete(batchId); else next.add(batchId);
+    return next;
+  });
+
+  const toggleBatch = (group) => {
+    const allSelected = group.units.every((u) => selected.has(u.id));
+    setSelected((s) => {
+      const next = new Set(s);
+      group.units.forEach((u) => (allSelected ? next.delete(u.id) : next.add(u.id)));
       return next;
     });
   };
@@ -103,6 +144,10 @@ export default function Etiquetas() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <div className="rounded-xl border border-border bg-card p-4">
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, nome ou lote..." className="pl-9" />
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div><Label>De</Label><Input value={fromNum} onChange={(e) => setFromNum(e.target.value.toUpperCase())} placeholder="PAT-000001" /></div>
               <div><Label>Até</Label><Input value={toNum} onChange={(e) => setToNum(e.target.value.toUpperCase())} placeholder="PAT-000050" /></div>
@@ -116,18 +161,44 @@ export default function Etiquetas() {
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {rows.length === 0 ? (
             <EmptyState icon={QrCode} title="Nenhum patrimônio" />
           ) : (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              {filtered.map((a) => (
-                <div key={a.id} className="flex items-center gap-3 p-3 border-b border-border last:border-0">
-                  <button onClick={() => toggle(a.id)} className="text-primary">
-                    {selected.has(a.id) ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-muted-foreground" />}
+            <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border">
+              {rows.map((r) => r.isBatch ? (
+                <div key={r.id} className="divide-y divide-border">
+                  <div className="flex items-center gap-2 p-3 bg-muted/30">
+                    <button onClick={() => toggleBatch(r)} className="text-primary">
+                      {r.units.every((u) => selected.has(u.id)) ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-muted-foreground" />}
+                    </button>
+                    <button type="button" onClick={() => toggleExpand(r.batch_id)} className="text-muted-foreground shrink-0">
+                      {expanded.has(r.batch_id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0"><Layers className="w-3.5 h-3.5" /> Lote</span>
+                    <span className="text-sm flex-1 truncate">
+                      <span className="font-medium">{r.name}</span>{' '}
+                      <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5">{r.units.length} unidades</span>
+                    </span>
+                    <span className="text-xs text-muted-foreground hidden sm:block">{r.category_name} · {r.location_name}</span>
+                  </div>
+                  {expanded.has(r.batch_id) && r.units.map((u) => (
+                    <div key={u.id} className="flex items-center gap-3 p-3 pl-12">
+                      <button onClick={() => toggle(u.id)} className="text-primary">
+                        {selected.has(u.id) ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-muted-foreground" />}
+                      </button>
+                      <span className="font-mono text-xs w-24">{u.asset_number}</span>
+                      <span className="text-sm flex-1 truncate">{u.variant || '-'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div key={r.id} className="flex items-center gap-3 p-3">
+                  <button onClick={() => toggle(r.id)} className="text-primary">
+                    {selected.has(r.id) ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-muted-foreground" />}
                   </button>
-                  <span className="font-mono text-xs w-24">{a.asset_number}</span>
-                  <span className="text-sm flex-1 truncate">{a.name}{a.variant && <span className="text-muted-foreground"> · {a.variant}</span>}</span>
-                  <span className="text-xs text-muted-foreground hidden sm:block">{a.category_name} · {a.location_name}</span>
+                  <span className="font-mono text-xs w-24">{r.asset_number}</span>
+                  <span className="text-sm flex-1 truncate">{r.name}{r.variant && <span className="text-muted-foreground"> · {r.variant}</span>}</span>
+                  <span className="text-xs text-muted-foreground hidden sm:block">{r.category_name} · {r.location_name}</span>
                 </div>
               ))}
             </div>
