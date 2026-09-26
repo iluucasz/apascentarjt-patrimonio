@@ -21,7 +21,18 @@ import { canDeleteAsset, canEditAsset, canMoveAsset } from '@/lib/permissions';
 import { toast } from 'sonner';
 
 const KEEP = '__keep';
-const EMPTY_MOVE = { to_location_id: '', responsible_person: '', movement_type: 'transfer', notes: '' };
+const ALL = '__all';
+const EMPTY_MOVE = {
+  to_location_id: '', responsible_person: '', movement_type: 'transfer', notes: '',
+  from_location_id: ALL, variant: ALL, quantity: '',
+};
+
+// Resume uma lista de números patrimoniais para exibir: todos se forem poucos,
+// senão o primeiro e o último.
+function describeNumbers(numbers) {
+  if (numbers.length <= 6) return numbers.join(', ');
+  return `${numbers[0]} … ${numbers[numbers.length - 1]} (${numbers.length} unidades)`;
+}
 const EMPTY_STATE = { status: KEEP, condition: KEEP };
 
 export default function PatrimonioLote() {
@@ -33,7 +44,7 @@ export default function PatrimonioLote() {
   const [selected, setSelected] = useState(new Set());
   const [deleteScope, setDeleteScope] = useState(null); // 'selected' | 'all'
   const [deleting, setDeleting] = useState(false);
-  // Movimentar / alterar status: escopo 'selected' | 'all' (null = fechado)
+  // Movimentar: 'quantity' (escolher quantas) | 'selected' (as marcadas); null = fechado
   const [moveScope, setMoveScope] = useState(null);
   const [moveForm, setMoveForm] = useState(EMPTY_MOVE);
   const [stateScope, setStateScope] = useState(null);
@@ -68,6 +79,35 @@ export default function PatrimonioLote() {
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [units]);
+
+  // Locais de origem possíveis (onde há unidades do lote que não foram baixadas).
+  const originOptions = useMemo(() => {
+    if (!units) return [];
+    const map = new Map();
+    for (const u of units) {
+      if (u.status === 'disposed') continue;
+      const key = u.location_id || '';
+      if (!map.has(key)) map.set(key, { id: key, name: u.location_name || 'Sem local', count: 0 });
+      map.get(key).count += 1;
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  }, [units]);
+
+  // Unidades que podem ser movidas com os filtros do diálogo (em ordem de número).
+  const movable = useMemo(() => {
+    if (!units || moveScope !== 'quantity') return [];
+    return units.filter((u) => u.status !== 'disposed'
+      && (moveForm.from_location_id === ALL || (u.location_id || '') === moveForm.from_location_id)
+      && (moveForm.variant === ALL || (u.variant || '') === moveForm.variant)
+      && (!moveForm.to_location_id || u.location_id !== moveForm.to_location_id));
+  }, [units, moveScope, moveForm.from_location_id, moveForm.variant, moveForm.to_location_id]);
+  const moveQuantity = Math.floor(Number(moveForm.quantity) || 0);
+  const toMove = moveScope === 'quantity' ? movable.slice(0, Math.max(0, moveQuantity)) : [];
+
+  const openQuantityMove = () => {
+    setMoveForm({ ...EMPTY_MOVE, from_location_id: originOptions.length === 1 ? originOptions[0].id : ALL });
+    setMoveScope('quantity');
+  };
 
   const filtered = useMemo(() => {
     if (!units) return [];
@@ -122,11 +162,24 @@ export default function PatrimonioLote() {
 
   const handleMove = async () => {
     if (!moveForm.to_location_id) { toast.error('Selecione o novo local'); return; }
+    let ids = [...selected];
+    if (moveScope === 'quantity') {
+      if (moveQuantity < 1) { toast.error('Informe quantas unidades movimentar'); return; }
+      if (moveQuantity > movable.length) {
+        toast.error(`Só há ${movable.length} unidade${movable.length === 1 ? '' : 's'} disponíve${movable.length === 1 ? 'l' : 'is'} com esses filtros`);
+        return;
+      }
+      ids = toMove.map((u) => u.id);
+    }
+    const { to_location_id, responsible_person, movement_type, notes } = moveForm;
     setWorking(true);
     try {
-      const res = await db.functions.invoke('moveAssets', { batch_id: batchId, ids: scopeIds(moveScope), ...moveForm });
+      const res = await db.functions.invoke('moveAssets', { batch_id: batchId, ids, to_location_id, responsible_person, movement_type, notes });
       const count = res.data.count;
-      toast.success(`${count} patrimônio${count === 1 ? '' : 's'} movimentado${count === 1 ? '' : 's'}`);
+      const destination = locations.find((l) => l.id === to_location_id)?.name || 'o novo local';
+      toast.success(`${count} patrimônio${count === 1 ? '' : 's'} movimentado${count === 1 ? '' : 's'} para ${destination}`, {
+        action: { label: 'Imprimir etiquetas', onClick: () => navigate(`/etiquetas?ids=${ids.join(',')}`) },
+      });
       setMoveScope(null);
       setMoveForm(EMPTY_MOVE);
       setSelected(new Set());
@@ -173,7 +226,6 @@ export default function PatrimonioLote() {
   }
 
   const first = units[0];
-  const moveCount = moveScope === 'all' ? units.length : selected.size;
   const stateCount = stateScope === 'all' ? units.length : selected.size;
 
   return (
@@ -184,7 +236,7 @@ export default function PatrimonioLote() {
           <Button variant="outline" onClick={() => navigate(`/patrimonios/lote/${batchId}/editar`)}><Pencil className="w-4 h-4 mr-2" /> Editar lote</Button>
         )}
         {canMoveAsset(user) && (
-          <Button variant="outline" onClick={() => setMoveScope('all')}><ArrowLeftRight className="w-4 h-4 mr-2" /> Movimentar lote</Button>
+          <Button variant="outline" onClick={openQuantityMove}><ArrowLeftRight className="w-4 h-4 mr-2" /> Movimentar</Button>
         )}
         <Button onClick={() => navigate(`/etiquetas?batch_id=${batchId}`)}><Printer className="w-4 h-4 mr-2" /> Imprimir etiquetas</Button>
         {canDeleteAsset(user) && (
@@ -307,17 +359,59 @@ export default function PatrimonioLote() {
         ))}
       </div>
 
-      {/* Movimentar (lote inteiro ou selecionados) */}
+      {/* Movimentar (por quantidade ou as selecionadas) */}
       <Dialog open={!!moveScope} onOpenChange={(v) => { if (!v) setMoveScope(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{moveScope === 'all' ? 'Movimentar lote inteiro' : 'Movimentar selecionados'}</DialogTitle>
+            <DialogTitle>{moveScope === 'quantity' ? `Movimentar ${first.name}` : `Movimentar ${selected.size} selecionado${selected.size === 1 ? '' : 's'}`}</DialogTitle>
             <DialogDescription>
-              {moveCount} unidade{moveCount === 1 ? '' : 's'} de &quot;{first.name}&quot;. A movimentação fica registrada no histórico de cada unidade.
+              {moveScope === 'quantity'
+                ? 'Escolha quantas unidades vão para o novo local. Para mandar outra parte para outro local, é só repetir.'
+                : `${selected.size} unidade${selected.size === 1 ? '' : 's'} de "${first.name}".`}
+              {' '}A movimentação fica registrada no histórico de cada unidade.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {moveScope === 'quantity' && originOptions.length > 1 && (
+              <div>
+                <Label>Sair de</Label>
+                <Select value={moveForm.from_location_id} onValueChange={(v) => setMoveForm((f) => ({ ...f, from_location_id: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Qualquer local</SelectItem>
+                    {originOptions.map((o) => <SelectItem key={o.id || 'none'} value={o.id}>{o.name} ({o.count})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {moveScope === 'quantity' && byVariant.length > 1 && (
+              <div>
+                <Label>Variante</Label>
+                <Select value={moveForm.variant} onValueChange={(v) => setMoveForm((f) => ({ ...f, variant: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Qualquer variante</SelectItem>
+                    {[...new Set(units.map((u) => u.variant || ''))].map((v) => <SelectItem key={v || 'default'} value={v}>{v || 'Padrão'}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div><Label>Novo local *</Label><Select value={moveForm.to_location_id} onValueChange={(v) => setMoveForm((f) => ({ ...f, to_location_id: v }))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            {moveScope === 'quantity' && (
+              <div>
+                <Label>Quantidade *</Label>
+                <div className="flex items-center gap-2">
+                  <Input type="number" min="1" max={movable.length} placeholder="Ex: 4" value={moveForm.quantity} onChange={(e) => setMoveForm((f) => ({ ...f, quantity: e.target.value }))} className="w-28" />
+                  <span className="text-sm text-muted-foreground">de {movable.length} disponíve{movable.length === 1 ? 'l' : 'is'}</span>
+                  {movable.length > 0 && <Button type="button" size="sm" variant="ghost" onClick={() => setMoveForm((f) => ({ ...f, quantity: String(movable.length) }))}>Todas</Button>}
+                </div>
+                {toMove.length > 0 && moveQuantity <= movable.length && (
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Vão as unidades <span className="font-mono text-foreground">{describeNumbers(toMove.map((u) => u.asset_number))}</span>. Separe as peças com essas etiquetas.
+                  </p>
+                )}
+              </div>
+            )}
             <div><Label>Responsável</Label><Input value={moveForm.responsible_person} onChange={(e) => setMoveForm((f) => ({ ...f, responsible_person: e.target.value }))} /></div>
             <div><Label>Tipo</Label><Select value={moveForm.movement_type} onValueChange={(v) => setMoveForm((f) => ({ ...f, movement_type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(MOVEMENT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Observação</Label><Textarea value={moveForm.notes} onChange={(e) => setMoveForm((f) => ({ ...f, notes: e.target.value }))} rows={2} /></div>
