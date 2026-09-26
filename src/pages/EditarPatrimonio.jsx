@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
@@ -12,15 +12,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Save, Loader2, Camera } from 'lucide-react';
+import { Save, Loader2, Camera, Layers } from 'lucide-react';
 import { STATUS_LABELS, CONDITION_LABELS } from '@/lib/format';
 import { Image } from '@/components/ui/image';
 
 export default function EditarPatrimonio() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { categories, locations } = useApp();
+  const { user, categories, locations } = useApp();
+  const [original, setOriginal] = useState(null);
   const [form, setForm] = useState(null);
+  const [quantity, setQuantity] = useState('1');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -30,6 +32,7 @@ export default function EditarPatrimonio() {
         const list = await db.entities.Asset.filter({ id });
         if (list.length === 0) { toast.error('Patrimônio não encontrado'); navigate('/patrimonios'); return; }
         const a = list[0];
+        setOriginal(a);
         setForm({
           name: a.name || '', description: a.description || '', category_id: a.category_id || '', brand: a.brand || '',
           model: a.model || '', serial_number: a.serial_number || '', location_id: a.location_id || '',
@@ -62,14 +65,32 @@ export default function EditarPatrimonio() {
     try {
       const cat = categories.find((c) => c.id === form.category_id);
       const loc = locations.find((l) => l.id === form.location_id);
+      // Trocar o local pela edição também entra no histórico de movimentações,
+      // igual ao botão Movimentar da página do patrimônio.
+      if (form.location_id && form.location_id !== (original.location_id || '')) {
+        await db.entities.AssetMovement.create({
+          asset_id: id, asset_number: original.asset_number, asset_name: form.name,
+          from_location_id: original.location_id, from_location_name: original.location_name,
+          to_location_id: form.location_id, to_location_name: loc?.name || '',
+          movement_type: 'transfer', notes: 'Local alterado na edição do patrimônio',
+          moved_by_name: user?.full_name || user?.email
+        });
+      }
       await db.entities.Asset.update(id, {
         ...form, category_name: cat?.name || '', location_name: loc?.name || '',
         acquisition_value: form.acquisition_value ? Number(form.acquisition_value) : 0
       });
       await db.entities.AuditLog.create({ action: 'asset_update', entity_type: 'Asset', entity_id: id, entity_label: '', user_name: '' });
+      const qty = Math.floor(Number(quantity) || 1);
+      if (!original.batch_id && qty > 1) {
+        const res = await db.functions.invoke('expandAsset', { asset_id: id, quantity: qty });
+        toast.success(`Patrimônio atualizado · agora é um lote com ${qty} unidades (lembre de imprimir as etiquetas das novas)`);
+        navigate(`/patrimonios/lote/${res.data.batch_id}`);
+        return;
+      }
       toast.success('Patrimônio atualizado');
       navigate(-1);
-    } catch (err) { toast.error('Erro ao atualizar'); }
+    } catch (err) { toast.error(err?.response?.data?.error || 'Erro ao atualizar'); }
     finally { setSaving(false); }
   };
 
@@ -77,11 +98,24 @@ export default function EditarPatrimonio() {
 
   return (
     <Layout>
-      <PageHeader title="Editar patrimônio" />
+      <PageHeader title="Editar patrimônio" description={original.asset_number} />
+      {original.batch_id && (
+        <div className="max-w-3xl mb-4 rounded-lg border border-border bg-muted/50 p-3 text-sm flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-2"><Layers className="w-4 h-4 text-muted-foreground" /> Esta unidade faz parte de um lote. As alterações abaixo valem só para ela.</span>
+          <Link to={`/patrimonios/lote/${original.batch_id}/editar`} className="font-medium text-primary hover:underline">Editar lote / quantidade</Link>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2"><Label>Nome do patrimônio *</Label><Input value={form.name} onChange={(e) => set('name', e.target.value)} required /></div>
+            <div className={original.batch_id ? 'md:col-span-2' : ''}><Label>Nome do patrimônio *</Label><Input value={form.name} onChange={(e) => set('name', e.target.value)} required /></div>
+            {!original.batch_id && (
+              <div>
+                <Label>Quantidade</Label>
+                <Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+                {Number(quantity) > 1 && <p className="text-xs text-muted-foreground mt-1">Serão criadas mais {Math.floor(Number(quantity)) - 1} unidade(s) iguais a esta, cada uma com número e QR Code próprios, formando um lote.</p>}
+              </div>
+            )}
             <div><Label>Categoria</Label><Select value={form.category_id} onValueChange={(v) => set('category_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Local</Label><Select value={form.location_id} onValueChange={(v) => set('location_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
             <div className="md:col-span-2"><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} /></div>

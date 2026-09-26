@@ -1,99 +1,150 @@
 import { db } from '@/lib/db';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Save, Loader2, Camera } from 'lucide-react';
+import { Save, Loader2, Camera, Plus, Trash2 } from 'lucide-react';
 import { Image } from '@/components/ui/image';
+import { STATUS_LABELS, CONDITION_LABELS } from '@/lib/format';
+import { canDeleteAsset } from '@/lib/permissions';
+
+// Valor de Select para "não alterar": usado quando as unidades do lote já estão
+// com status/condição/local diferentes entre si.
+const KEEP = '__keep';
+const MAX_BATCH_QUANTITY = 1000;
+
+function uniformValue(list, key) {
+  const values = new Set(list.map((u) => u[key] || ''));
+  return values.size === 1 ? [...values][0] : null;
+}
+
+const qtyOf = (row) => Math.max(0, Math.floor(Number(row.quantity) || 0));
+const rowLabel = (row) => (row.isNew ? row.label.trim() : row.variant || 'Padrão');
 
 export default function EditarLote() {
   const { batchId } = useParams();
   const navigate = useNavigate();
-  const { categories, locations } = useApp();
+  const { user, categories, locations } = useApp();
   const [units, setUnits] = useState(null);
   const [form, setForm] = useState(null);
-  const [variantPhotos, setVariantPhotos] = useState({});
+  const [mixed, setMixed] = useState({ status: false, condition: false, location: false });
+  const [variantRows, setVariantRows] = useState([]);
   const [uploadingKey, setUploadingKey] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const canReduce = canDeleteAsset(user);
 
   useEffect(() => {
     (async () => {
       try {
-        const list = await db.entities.Asset.filter({ batch_id: batchId }, 'asset_number');
+        const list = await db.entities.Asset.filter({ batch_id: batchId }, 'asset_number', 2000);
         if (list.length === 0) { toast.error('Lote não encontrado'); navigate('/patrimonios'); return; }
         setUnits(list);
         const first = list[0];
+        const status = uniformValue(list, 'status');
+        const condition = uniformValue(list, 'condition');
+        const location = uniformValue(list, 'location_id');
+        setMixed({ status: status === null, condition: condition === null, location: location === null });
         setForm({
           name: first.name || '', description: first.description || '', category_id: first.category_id || '',
-          brand: first.brand || '', model: first.model || '', location_id: first.location_id || '',
+          brand: first.brand || '', model: first.model || '', location_id: location ?? KEEP,
           responsible_person: first.responsible_person || '', acquisition_date: first.acquisition_date || '',
           acquisition_value: first.acquisition_value || '', supplier: first.supplier || '', invoice_number: first.invoice_number || '',
-          notes: first.notes || '',
+          notes: first.notes || '', status: status ?? KEEP, condition: condition ?? KEEP,
         });
-        const photosByVariant = {};
+        const groups = new Map();
         for (const u of list) {
           const key = u.variant || '';
-          if (!(key in photosByVariant)) photosByVariant[key] = u.photo_url || '';
+          if (!groups.has(key)) groups.set(key, { rowId: `v:${key}`, variant: key, label: '', isNew: false, original: 0, photo_url: u.photo_url || '' });
+          groups.get(key).original += 1;
         }
-        setVariantPhotos(photosByVariant);
+        setVariantRows([...groups.values()].map((g) => ({ ...g, quantity: String(g.original) })));
       } catch (e) { toast.error('Erro ao carregar lote'); }
     })();
   }, [batchId]);
 
-  const variantGroups = useMemo(() => {
-    if (!units) return [];
-    const counts = new Map();
-    for (const u of units) {
-      const key = u.variant || '';
-      counts.set(key, (counts.get(key) || 0) + 1);
-    }
-    return [...counts.entries()].map(([key, count]) => ({ key, label: key || 'Padrão', count }));
-  }, [units]);
-
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const setRow = (rowId, k, v) => setVariantRows((rows) => rows.map((r) => (r.rowId === rowId ? { ...r, [k]: v } : r)));
+  const addRow = () => setVariantRows((rows) => [
+    ...rows,
+    { rowId: `new:${Date.now()}`, variant: '', label: '', isNew: true, original: 0, quantity: '1', photo_url: '' },
+  ]);
+  const removeRow = (rowId) => setVariantRows((rows) => rows.filter((r) => r.rowId !== rowId));
 
-  const handleVariantPhoto = async (key, e) => {
+  const total = variantRows.reduce((sum, r) => sum + qtyOf(r), 0);
+  const added = variantRows.reduce((sum, r) => sum + Math.max(0, qtyOf(r) - r.original), 0);
+  const removed = variantRows.reduce((sum, r) => sum + Math.max(0, r.original - qtyOf(r)), 0);
+
+  const handleVariantPhoto = async (rowId, e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadingKey(key);
+    setUploadingKey(rowId);
     try {
       const { file_url } = await db.integrations.Core.UploadFile({ file });
-      setVariantPhotos((p) => ({ ...p, [key]: file_url }));
+      setRow(rowId, 'photo_url', file_url);
     } catch (err) { toast.error('Erro ao enviar foto'); }
     finally { setUploadingKey(null); }
   };
 
-  const handleSubmit = async (e) => {
+  const validate = () => {
+    if (!form.name) return 'Informe o nome';
+    const activeRows = variantRows.filter((r) => !(r.isNew && qtyOf(r) === 0));
+    if (activeRows.some((r) => r.isNew && !r.label.trim())) return 'Informe o nome de cada variante nova';
+    const labels = activeRows.map((r) => rowLabel(r).toLowerCase());
+    if (new Set(labels).size !== labels.length) return 'Há variantes com o mesmo nome';
+    if (total < 1) return 'O lote precisa ter ao menos uma unidade. Para apagar tudo, use "Excluir lote inteiro".';
+    if (total > MAX_BATCH_QUANTITY) return `Máximo de ${MAX_BATCH_QUANTITY} unidades por lote`;
+    if (removed > 0 && !canReduce) return 'Apenas administradores podem reduzir a quantidade';
+    return null;
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name) { toast.error('Informe o nome'); return; }
+    const error = validate();
+    if (error) { toast.error(error); return; }
+    if (removed > 0) { setConfirmOpen(true); return; }
+    save();
+  };
+
+  const save = async () => {
     setSaving(true);
     try {
       const cat = categories.find((c) => c.id === form.category_id);
-      const loc = locations.find((l) => l.id === form.location_id);
-      await db.functions.invoke('updateAssetBatch', {
+      const res = await db.functions.invoke('updateAssetBatch', {
         batch_id: batchId,
         ...form,
         category_name: cat?.name || '',
-        location_name: loc?.name || '',
+        location_id: form.location_id === KEEP ? null : form.location_id,
+        status: form.status === KEEP ? null : form.status,
+        condition: form.condition === KEEP ? null : form.condition,
         acquisition_value: form.acquisition_value ? Number(form.acquisition_value) : 0,
-        variant_photos: variantGroups.map((g) => ({ variant: g.key, photo_url: variantPhotos[g.key] || '' })),
+        variants: variantRows
+          .filter((r) => !(r.isNew && qtyOf(r) === 0))
+          .map((r) => ({ variant: r.isNew ? r.label.trim() : r.variant, quantity: qtyOf(r), photo_url: r.photo_url })),
       });
-      toast.success('Lote atualizado');
+      const { added: addedCount, removed: removedCount } = res.data;
+      const parts = ['Lote atualizado'];
+      if (addedCount) parts.push(`${addedCount} unidade${addedCount === 1 ? '' : 's'} nova${addedCount === 1 ? '' : 's'} (lembre de imprimir as etiquetas)`);
+      if (removedCount) parts.push(`${removedCount} unidade${removedCount === 1 ? '' : 's'} excluída${removedCount === 1 ? '' : 's'}`);
+      toast.success(parts.join(' · '));
       navigate(`/patrimonios/lote/${batchId}`);
     } catch (err) { toast.error(err?.response?.data?.error || 'Erro ao atualizar lote'); }
-    finally { setSaving(false); }
+    finally { setSaving(false); setConfirmOpen(false); }
   };
 
   if (!form) return <Layout><div className="h-40 rounded bg-muted animate-pulse" /></Layout>;
+
+  const singleDefault = variantRows.length === 1 && !variantRows[0].isNew && !variantRows[0].variant;
 
   return (
     <Layout>
@@ -103,7 +154,37 @@ export default function EditarLote() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2"><Label>Nome do patrimônio *</Label><Input value={form.name} onChange={(e) => set('name', e.target.value)} required /></div>
             <div><Label>Categoria</Label><Select value={form.category_id} onValueChange={(v) => set('category_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Local</Label><Select value={form.location_id} onValueChange={(v) => set('location_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            <div>
+              <Label>Local</Label>
+              <Select value={form.location_id} onValueChange={(v) => set('location_id', v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {mixed.location && <SelectItem value={KEEP}>Vários locais (manter cada unidade onde está)</SelectItem>}
+                  {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Mudar o local registra uma transferência no histórico de cada unidade.</p>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => set('status', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {mixed.status && <SelectItem value={KEEP}>Vários (manter o de cada unidade)</SelectItem>}
+                  {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Condição</Label>
+              <Select value={form.condition} onValueChange={(v) => set('condition', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {mixed.condition && <SelectItem value={KEEP}>Várias (manter a de cada unidade)</SelectItem>}
+                  {Object.entries(CONDITION_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="md:col-span-2"><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} /></div>
             <div><Label>Marca</Label><Input value={form.brand} onChange={(e) => set('brand', e.target.value)} /></div>
             <div><Label>Modelo</Label><Input value={form.model} onChange={(e) => set('model', e.target.value)} /></div>
@@ -115,35 +196,55 @@ export default function EditarLote() {
             <div className="md:col-span-2"><Label>Observações</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} /></div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Status, condição e número de série são individuais de cada unidade e continuam editáveis abrindo o patrimônio específico.
+            Status e condição escolhidos aqui valem para todas as unidades. Para mudar só algumas, selecione-as na página do lote. O número de série continua individual de cada unidade.
           </p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div>
-            <h3 className="font-semibold">Fotos</h3>
+            <h3 className="font-semibold">{singleDefault ? 'Quantidade e foto' : 'Variantes, quantidades e fotos'}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {variantGroups.length > 1
-                ? 'Cada variante pode ter sua própria foto.'
-                : 'Foto usada por todas as unidades do lote.'}
+              Aumentar a quantidade cria novas unidades com números patrimoniais novos.
+              {canReduce
+                ? ' Diminuir exclui as unidades cadastradas por último (para escolher quais, use a seleção na página do lote).'
+                : ' Apenas administradores podem diminuir a quantidade.'}
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {variantGroups.map((g) => (
-              <div key={g.key} className="flex items-center gap-4 rounded-lg border border-border p-3">
-                {variantPhotos[g.key] ? (
-                  <Image src={variantPhotos[g.key]} className="w-16 h-16 rounded-lg object-cover shrink-0" fittingType="fill" />
+          <div className="space-y-3">
+            {variantRows.map((r) => (
+              <div key={r.rowId} className="flex flex-wrap sm:flex-nowrap items-center gap-3 rounded-lg border border-border p-3">
+                {r.photo_url ? (
+                  <Image src={r.photo_url} className="w-16 h-16 rounded-lg object-cover shrink-0" fittingType="fill" />
                 ) : (
                   <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0"><Camera className="w-6 h-6 text-muted-foreground" /></div>
                 )}
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{g.label}</p>
-                  <p className="text-xs text-muted-foreground mb-1">{g.count} unidade{g.count === 1 ? '' : 's'}</p>
-                  <input type="file" accept="image/*" capture="environment" onChange={(e) => handleVariantPhoto(g.key, e)} className="text-xs w-full" />
-                  {uploadingKey === g.key && <p className="text-xs text-muted-foreground mt-1">Enviando...</p>}
+                <div className="min-w-0 flex-1">
+                  {r.isNew ? (
+                    <Input placeholder="Nome da variante (ex: Encosto azul)" value={r.label} onChange={(e) => setRow(r.rowId, 'label', e.target.value)} className="mb-1" />
+                  ) : (
+                    <p className="font-medium truncate">{rowLabel(r)}</p>
+                  )}
+                  <input type="file" accept="image/*" capture="environment" onChange={(e) => handleVariantPhoto(r.rowId, e)} className="text-xs w-full" />
+                  {uploadingKey === r.rowId && <p className="text-xs text-muted-foreground mt-1">Enviando...</p>}
                 </div>
+                <div className="w-24 shrink-0">
+                  <Label className="text-xs">Quantidade</Label>
+                  <Input type="number" min={canReduce ? 0 : r.original} value={r.quantity} onChange={(e) => setRow(r.rowId, 'quantity', e.target.value)} />
+                  {!r.isNew && qtyOf(r) !== r.original && <p className="text-[11px] text-muted-foreground mt-0.5">antes: {r.original}</p>}
+                </div>
+                {r.isNew && (
+                  <Button type="button" size="icon" variant="ghost" onClick={() => removeRow(r.rowId)} title="Remover variante"><Trash2 className="w-4 h-4" /></Button>
+                )}
               </div>
             ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus className="w-4 h-4 mr-1" /> Adicionar variante</Button>
+            <div className="text-sm text-right">
+              <p className="font-medium">Total: {total} unidade{total === 1 ? '' : 's'}{total !== units.length && <span className="text-muted-foreground font-normal"> (antes {units.length})</span>}</p>
+              {added > 0 && <p className="text-xs text-emerald-600">+{added} unidade{added === 1 ? '' : 's'} nova{added === 1 ? '' : 's'}</p>}
+              {removed > 0 && <p className="text-xs text-destructive">−{removed} unidade{removed === 1 ? '' : 's'} será{removed === 1 ? '' : 'ão'} excluída{removed === 1 ? '' : 's'}</p>}
+            </div>
           </div>
         </div>
 
@@ -152,6 +253,16 @@ export default function EditarLote() {
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Excluir ${removed} unidade${removed === 1 ? '' : 's'}?`}
+        description={`Diminuir a quantidade vai apagar ${removed} unidade${removed === 1 ? '' : 's'} (as cadastradas por último de cada variante) e todo o histórico delas. Para escolher exatamente quais unidades sair, cancele e use a seleção na página do lote. Essa ação não pode ser desfeita.`}
+        confirmLabel="Salvar e excluir"
+        loading={saving}
+        onConfirm={save}
+      />
     </Layout>
   );
 }

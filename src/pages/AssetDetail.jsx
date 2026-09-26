@@ -22,7 +22,7 @@ import PrintLabelPreview from '@/components/PrintLabelPreview';
 import { Image } from '@/components/ui/image';
 import { formatCurrency, formatDate, formatDateTime, MOVEMENT_LABELS, MAINTENANCE_LABELS, MAINTENANCE_STYLES, DISPOSED_REASON_LABELS, DOC_TYPE_LABELS } from '@/lib/format';
 import { canEditAsset, canDisposeAsset, canDeleteAsset, canMoveAsset, canMaintainAsset, canViewFinancials } from '@/lib/permissions';
-import { Pencil, ArrowLeftRight, Wrench, Archive, Printer, ImageIcon, FileText, Trash2, Download } from 'lucide-react';
+import { Pencil, ArrowLeftRight, Wrench, Archive, Printer, ImageIcon, FileText, Trash2, Download, Layers } from 'lucide-react';
 
 export default function AssetDetail() {
   const { assetNumber } = useParams();
@@ -174,6 +174,7 @@ export default function AssetDetail() {
   return (
     <Layout>
       <PageHeader title={asset.name} description={asset.asset_number}>
+        {asset.batch_id && <Button variant="outline" onClick={() => navigate(`/patrimonios/lote/${asset.batch_id}`)}><Layers className="w-4 h-4 mr-2" /> Ver lote</Button>}
         <Button variant="outline" onClick={() => setPrintOpen(true)}><Printer className="w-4 h-4 mr-2" /> Imprimir etiqueta</Button>
         {canMoveAsset(user) && <Button variant="outline" onClick={() => setMoveOpen(true)}><ArrowLeftRight className="w-4 h-4 mr-2" /> Movimentar</Button>}
         {canMaintainAsset(user) && <Button variant="outline" onClick={() => setMaintOpen(true)}><Wrench className="w-4 h-4 mr-2" /> Manutenção</Button>}

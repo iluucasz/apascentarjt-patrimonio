@@ -6,7 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
-import { AssetStatusBadge, AssetConditionBadge } from '@/components/AssetBadges';
+import { AssetStatusBadge, AssetConditionBadge, AssetBadgeSummary, countBy } from '@/components/AssetBadges';
 import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
@@ -77,13 +77,20 @@ export default function Patrimonios() {
           isBatch: true, id: a.batch_id, batch_id: a.batch_id, name: a.name,
           category_name: a.category_name, location_name: a.location_name,
           responsible_person: a.responsible_person, photo_url: a.photo_url,
-          updated_date: a.updated_date, count: 0,
+          updated_date: a.updated_date, units: [],
         };
         groups.set(a.batch_id, group);
         result.push(group);
       }
-      group.count += 1;
+      group.units.push(a);
       if (a.updated_date > group.updated_date) group.updated_date = a.updated_date;
+    }
+    for (const r of result) {
+      if (!r.isBatch) continue;
+      r.count = r.units.length;
+      r.statusCounts = countBy(r.units, 'status');
+      r.conditionCounts = countBy(r.units, 'condition');
+      r.locationCount = new Set(r.units.map((u) => u.location_id || '')).size;
     }
     return result;
   }, [filtered]);
@@ -229,10 +236,10 @@ export default function Patrimonios() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{a.category_name || '-'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.location_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.locationCount > 1 ? `Vários locais (${a.locationCount})` : a.location_name || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{a.responsible_person || '-'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">—</td>
-                    <td className="px-4 py-3 text-muted-foreground">—</td>
+                    <td className="px-4 py-3"><AssetBadgeSummary kind="status" counts={a.statusCounts} /></td>
+                    <td className="px-4 py-3"><AssetBadgeSummary kind="condition" counts={a.conditionCounts} /></td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(a.updated_date)}</td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
@@ -282,7 +289,11 @@ export default function Patrimonios() {
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-muted-foreground flex items-center gap-1"><Layers className="w-3 h-3" /> Lote · {a.count} unidades</p>
                     <p className="font-medium truncate">{a.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.location_name || '-'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.locationCount > 1 ? 'Vários locais' : a.location_name || '-'}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      <AssetBadgeSummary kind="status" counts={a.statusCounts} />
+                      <AssetBadgeSummary kind="condition" counts={a.conditionCounts} />
+                    </div>
                   </div>
                 </div>
               </Link>
@@ -295,7 +306,10 @@ export default function Patrimonios() {
                     <p className="font-medium truncate">{a.name}{a.variant && <span className="text-muted-foreground font-normal"> · {a.variant}</span>}</p>
                     <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.location_name || '-'}</p>
                   </div>
-                  <AssetStatusBadge status={a.status} />
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <AssetStatusBadge status={a.status} />
+                    <AssetConditionBadge condition={a.condition} />
+                  </div>
                 </div>
               </Link>
             ))}
