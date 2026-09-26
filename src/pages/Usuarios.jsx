@@ -12,18 +12,24 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import LocationPicker from '@/components/LocationPicker';
 import { toast } from 'sonner';
-import { Users, UserPlus, Trash2 } from 'lucide-react';
+import { Users, UserPlus, Trash2, MapPin } from 'lucide-react';
 import { ROLE_LABELS } from '@/lib/permissions';
 import { formatDate } from '@/lib/format';
 
 export default function Usuarios() {
-  const { user } = useApp();
+  const { user, locations } = useApp();
   const [users, setUsers] = useState(null);
   const [open, setOpen] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('user');
+  const [newAllowed, setNewAllowed] = useState([]);
+  // Edição dos locais que um usuário pode ver
+  const [accessTarget, setAccessTarget] = useState(null);
+  const [accessValue, setAccessValue] = useState([]);
+  const [savingAccess, setSavingAccess] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -39,9 +45,9 @@ export default function Usuarios() {
     if (newPassword.length < 6) { toast.error('A senha deve ter pelo menos 6 caracteres'); return; }
     setCreating(true);
     try {
-      await db.users.createUser(newEmail, newPassword, newRole);
+      await db.users.createUser(newEmail, newPassword, newRole, newRole === 'admin' ? [] : newAllowed);
       setOpen(false);
-      setNewEmail(''); setNewPassword(''); setNewRole('user');
+      setNewEmail(''); setNewPassword(''); setNewRole('user'); setNewAllowed([]);
       await load();
       toast.success('Usuário criado');
     } catch (e) {
@@ -54,6 +60,33 @@ export default function Usuarios() {
   const changeRole = async (u, role) => {
     try { await db.entities.User.update(u.id, { role }); await load(); toast.success('Perfil atualizado'); }
     catch (e) { toast.error('Erro'); }
+  };
+
+  const openAccess = (u) => {
+    setAccessTarget(u);
+    setAccessValue(u.allowed_location_ids || []);
+  };
+
+  const saveAccess = async () => {
+    setSavingAccess(true);
+    try {
+      await db.entities.User.update(accessTarget.id, { allowed_location_ids: accessValue });
+      setAccessTarget(null);
+      await load();
+      toast.success('Locais do usuário atualizados');
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao salvar locais');
+    } finally {
+      setSavingAccess(false);
+    }
+  };
+
+  // "Todos" ou os nomes dos locais liberados (os que ainda existem).
+  const accessLabel = (u) => {
+    if (u.role === 'admin') return 'Todos (administrador)';
+    const names = (u.allowed_location_ids || []).map((id) => locations.find((l) => l.id === id)?.name).filter(Boolean);
+    if (names.length === 0) return 'Todos';
+    return names.length <= 2 ? names.join(', ') : `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
   };
 
   const confirmDelete = async () => {
@@ -91,6 +124,7 @@ export default function Usuarios() {
               <th className="text-left font-medium px-4 py-3">Nome</th>
               <th className="text-left font-medium px-4 py-3">E-mail</th>
               <th className="text-left font-medium px-4 py-3">Perfil</th>
+              <th className="text-left font-medium px-4 py-3">Locais</th>
               <th className="text-left font-medium px-4 py-3 hidden sm:table-cell">Cadastro</th>
               <th className="text-right font-medium px-4 py-3">Ações</th>
             </tr></thead>
@@ -108,6 +142,16 @@ export default function Usuarios() {
                         <SelectItem value="user">{ROLE_LABELS.viewer}</SelectItem>
                       </SelectContent>
                     </Select>
+                  </td>
+                  <td className="px-4 py-3">
+                    {u.role === 'admin' ? (
+                      <span className="text-muted-foreground">{accessLabel(u)}</span>
+                    ) : (
+                      <button onClick={() => openAccess(u)} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-accent text-left" title="Definir locais que este usuário pode ver">
+                        <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate max-w-[180px]">{accessLabel(u)}</span>
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">{formatDate(u.created_date)}</td>
                   <td className="px-4 py-3 text-right">
@@ -133,9 +177,33 @@ export default function Usuarios() {
             <div><Label>E-mail *</Label><Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@exemplo.com" /></div>
             <div><Label>Senha *</Label><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" /></div>
             <div><Label>Perfil</Label><Select value={newRole} onValueChange={setNewRole}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="user">Leitor / Inventariante</SelectItem><SelectItem value="manager">Gestor</SelectItem><SelectItem value="admin">Administrador</SelectItem></SelectContent></Select></div>
+            {newRole !== 'admin' && (
+              <div>
+                <Label>Locais que pode ver</Label>
+                <p className="text-xs text-muted-foreground mb-1.5">Deixe tudo desmarcado para ver todos os locais.</p>
+                <LocationPicker locations={locations} value={newAllowed} onChange={setNewAllowed} />
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">Não há envio de e-mail: compartilhe essa senha diretamente com a pessoa.</p>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={createUser} disabled={creating}>{creating ? 'Criando...' : 'Criar usuário'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!accessTarget} onOpenChange={(v) => { if (!v) setAccessTarget(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Locais que {accessTarget?.full_name || accessTarget?.email} pode ver</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              O usuário só vê os patrimônios, movimentações, manutenções e inventários dos locais marcados (e dos sublocais deles).
+              Ele ainda pode movimentar um item dele para outro local. Deixe tudo desmarcado para liberar todos os locais.
+            </p>
+            <LocationPicker locations={locations} value={accessValue} onChange={setAccessValue} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccessValue([])} disabled={savingAccess || accessValue.length === 0}>Liberar todos</Button>
+            <Button onClick={saveAccess} disabled={savingAccess}>{savingAccess ? 'Salvando...' : 'Salvar'}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

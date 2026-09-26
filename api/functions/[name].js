@@ -7,13 +7,17 @@ import { randomUUID } from 'node:crypto';
 
 import { getPool } from '../_lib/db.js';
 import { methodNotAllowed, requireUser, sendError, sendJson } from '../_lib/http.js';
+import { assetsOutsideScope, resolveScope } from '../_lib/scope.js';
 
-async function createAsset(req, res, user) {
+async function createAsset(req, res, user, scope) {
   if (user.role !== 'admin' && user.role !== 'manager') {
     return sendError(res, 403, 'Sem permissão para cadastrar patrimônio');
   }
 
   const payload = req.body || {};
+  if (scope.restrictedIds && !scope.restrictedIds.includes(payload.location_id)) {
+    return sendError(res, 403, 'Você não tem acesso a este local');
+  }
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -84,7 +88,7 @@ async function createAsset(req, res, user) {
 
 const MAX_BATCH_QUANTITY = 1000;
 
-async function createAssetBatch(req, res, user) {
+async function createAssetBatch(req, res, user, scope) {
   if (user.role !== 'admin' && user.role !== 'manager') {
     return sendError(res, 403, 'Sem permissão para cadastrar patrimônio');
   }
@@ -97,6 +101,9 @@ async function createAssetBatch(req, res, user) {
   const total = cleanVariants.reduce((sum, v) => sum + v.quantity, 0);
 
   if (!payload.name) return sendError(res, 400, 'Informe o nome do patrimônio');
+  if (scope.restrictedIds && !scope.restrictedIds.includes(payload.location_id)) {
+    return sendError(res, 403, 'Você não tem acesso a este local');
+  }
   if (total < 1) return sendError(res, 400, 'Informe ao menos uma variante com quantidade');
   if (total > MAX_BATCH_QUANTITY) {
     return sendError(res, 400, `Máximo de ${MAX_BATCH_QUANTITY} unidades por lote`);
@@ -305,7 +312,7 @@ async function findLocationName(client, locationId) {
   return rows[0] ? rows[0].name : null;
 }
 
-async function updateAssetBatch(req, res, user) {
+async function updateAssetBatch(req, res, user, scope) {
   if (user.role !== 'admin' && user.role !== 'manager') {
     return sendError(res, 403, 'Sem permissão para editar patrimônio');
   }
@@ -347,6 +354,10 @@ async function updateAssetBatch(req, res, user) {
     if (units.length === 0) {
       await client.query('rollback');
       return sendError(res, 404, 'Lote não encontrado');
+    }
+    if (await assetsOutsideScope(client, units.map((u) => u.id), scope.restrictedIds)) {
+      await client.query('rollback');
+      return sendError(res, 403, 'Este lote tem unidades em locais que você não acessa');
     }
 
     const unitsByVariant = new Map();
@@ -496,7 +507,7 @@ async function updateAssetBatch(req, res, user) {
 
 // Transforma um patrimônio avulso num lote com `quantity` unidades: o item
 // original ganha um batch_id e as demais unidades são cópias dele.
-async function expandAsset(req, res, user) {
+async function expandAsset(req, res, user, scope) {
   if (user.role !== 'admin' && user.role !== 'manager') {
     return sendError(res, 403, 'Sem permissão para cadastrar patrimônio');
   }
@@ -519,6 +530,10 @@ async function expandAsset(req, res, user) {
     if (!asset) {
       await client.query('rollback');
       return sendError(res, 404, 'Patrimônio não encontrado');
+    }
+    if (scope.restrictedIds && !scope.restrictedIds.includes(asset.location_id)) {
+      await client.query('rollback');
+      return sendError(res, 403, 'Você não tem acesso a este local');
     }
     if (asset.batch_id) {
       await client.query('rollback');
@@ -557,7 +572,7 @@ async function expandAsset(req, res, user) {
   }
 }
 
-async function moveAssets(req, res, user) {
+async function moveAssets(req, res, user, scope) {
   if (user.role !== 'admin' && user.role !== 'manager') {
     return sendError(res, 403, 'Sem permissão para movimentar patrimônio');
   }
@@ -573,6 +588,10 @@ async function moveAssets(req, res, user) {
   try {
     await client.query('begin');
 
+    if (await assetsOutsideScope(client, ids, scope.restrictedIds)) {
+      await client.query('rollback');
+      return sendError(res, 403, 'Você não tem acesso a este local');
+    }
     const locationName = await findLocationName(client, payload.to_location_id);
     if (locationName === null) {
       await client.query('rollback');
@@ -612,7 +631,7 @@ async function moveAssets(req, res, user) {
 
 // Altera status e/ou condição de várias unidades de uma vez (ex.: 5 cadeiras
 // de um lote de 100 que quebraram).
-async function updateAssetsState(req, res, user) {
+async function updateAssetsState(req, res, user, scope) {
   if (user.role !== 'admin' && user.role !== 'manager') {
     return sendError(res, 403, 'Sem permissão para editar patrimônio');
   }
@@ -628,6 +647,10 @@ async function updateAssetsState(req, res, user) {
   const client = await pool.connect();
   try {
     await client.query('begin');
+    if (await assetsOutsideScope(client, ids, scope.restrictedIds)) {
+      await client.query('rollback');
+      return sendError(res, 403, 'Você não tem acesso a este local');
+    }
 
     const { rowCount } = await client.query(
       `update assets set status = coalesce($2, status), condition = coalesce($3, condition), updated_date = now()
@@ -722,5 +745,6 @@ export default async function handler(req, res) {
   const user = await requireUser(req, res);
   if (!user) return;
 
-  return fn(req, res, user);
+  const scope = await resolveScope(getPool(), user, req);
+  return fn(req, res, user, scope);
 }

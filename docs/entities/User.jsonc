@@ -7,6 +7,13 @@
         "admin",
         "user"
       ]
+    },
+    "allowed_location_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Locais (e sublocais) que o usuário pode ver; vazio/null = todos. Ignorado para admin."
     }
   },
   "required": [

@@ -26,7 +26,7 @@ const STATUS_STYLES = {
 };
 
 export default function Inventarios() {
-  const { locations, user } = useApp();
+  const { scopeLocations: locations, isScoped, user } = useApp();
   const navigate = useNavigate();
   const [items, setItems] = useState(null);
   const [open, setOpen] = useState(false);
@@ -42,13 +42,14 @@ export default function Inventarios() {
 
   const create = async () => {
     if (!form.name) { toast.error('Informe o nome'); return; }
+    if (isScoped && !form.location_id) { toast.error('Selecione o local'); return; }
     try {
       const loc = locations.find((l) => l.id === form.location_id);
       const inv = await db.entities.Inventory.create({
         name: form.name,
-        location_id: form.all_locations ? '' : (form.location_id || ''),
-        location_name: form.all_locations ? 'Todos os locais' : (loc?.name || ''),
-        all_locations: form.all_locations,
+        location_id: form.all_locations && !isScoped ? '' : (form.location_id || ''),
+        location_name: form.all_locations && !isScoped ? 'Todos os locais' : (loc?.name || ''),
+        all_locations: form.all_locations && !isScoped,
         status: 'draft',
         created_by_name: user?.full_name || user?.email
       });
@@ -111,8 +112,8 @@ export default function Inventarios() {
           <DialogHeader><DialogTitle>Novo inventário</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm(f => ({...f, name: e.target.value}))} placeholder="Ex: Inventário Geral Agosto 2026" /></div>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.all_locations} onChange={(e) => setForm(f => ({...f, all_locations: e.target.checked}))} /> Todos os locais</label>
-            {!form.all_locations && (
+            {!isScoped && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.all_locations} onChange={(e) => setForm(f => ({...f, all_locations: e.target.checked}))} /> Todos os locais</label>}
+            {(isScoped || !form.all_locations) && (
               <div><Label>Local</Label><Select value={form.location_id} onValueChange={(v) => setForm(f => ({...f, location_id: v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
             )}
           </div>

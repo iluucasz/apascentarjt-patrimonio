@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 const PAGE_SIZE = 12;
 
 export default function Patrimonios() {
-  const { categories, locations, user } = useApp();
+  const { categories, scopeLocations: locations, user } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [assets, setAssets] = useState(null);

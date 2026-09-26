@@ -4,9 +4,12 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ScanLine, ClipboardList, ArrowLeftRight, Wrench,
-  MapPin, Tags, QrCode, Users, Settings, Menu, X, Search, LogOut, Church
+  MapPin, Tags, QrCode, Users, Settings, Menu, X, Search, LogOut, Church, ChevronsUpDown, Check
 } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 
 import { cn } from '@/lib/utils';
 import { ROLE_LABELS } from '@/lib/permissions';
@@ -26,7 +29,7 @@ const NAV = [
 ];
 
 export default function Layout({ children }) {
-  const { user, settings } = useApp();
+  const { user, settings, filialOptions, currentFilial, setFilial } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
@@ -48,21 +51,51 @@ export default function Layout({ children }) {
     window.location.href = '/login';
   };
 
+  // Seletor de filial no topo da barra lateral (só aparece com mais de uma opção).
+  const canSwitchFilial = filialOptions.length > 1;
+  const filialLabel = !currentFilial || (!canSwitchFilial && currentFilial.overview)
+    ? 'Patrimônio'
+    : currentFilial.main ? `${currentFilial.name} · visão geral` : currentFilial.name;
+  const Brand = (
+    <>
+      <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 overflow-hidden">
+        {settings?.church_logo_url ? (
+          <img src={settings.church_logo_url} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <Church className="w-5 h-5" />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold truncate text-foreground">{settings?.church_name || 'Gestão Patrimonial'}</p>
+        <p className="text-xs text-muted-foreground truncate">{filialLabel}</p>
+      </div>
+    </>
+  );
+
   const SidebarContent = (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-2 px-5 h-16 border-b border-border shrink-0">
-        <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 overflow-hidden">
-          {settings?.church_logo_url ? (
-            <img src={settings.church_logo_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <Church className="w-5 h-5" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold truncate text-foreground">{settings?.church_name || 'Gestão Patrimonial'}</p>
-          <p className="text-xs text-muted-foreground truncate">Patrimônio</p>
-        </div>
-      </div>
+      {canSwitchFilial ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 px-5 h-16 border-b border-border shrink-0 w-full text-left hover:bg-accent/50 transition-colors" title="Trocar de filial">
+              {Brand}
+              <ChevronsUpDown className="w-4 h-4 text-muted-foreground shrink-0 ml-auto" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-60">
+            <DropdownMenuLabel>Ver patrimônio de</DropdownMenuLabel>
+            {filialOptions.map((o) => (
+              <DropdownMenuItem key={o.id || 'all'} onSelect={() => { setFilial(o.id); setMobileOpen(false); }} className="gap-2">
+                <Check className={cn('w-4 h-4 shrink-0', currentFilial?.id === o.id ? 'opacity-100' : 'opacity-0')} />
+                <span className="truncate flex-1">{o.name}</span>
+                {o.main && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Principal</span>}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <div className="flex items-center gap-2 px-5 h-16 border-b border-border shrink-0">{Brand}</div>
+      )}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;

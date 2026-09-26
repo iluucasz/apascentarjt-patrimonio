@@ -19,7 +19,7 @@ import AssetBarcode from '@/components/AssetBarcode';
 
 export default function Etiquetas() {
   const [searchParams] = useSearchParams();
-  const { categories, locations, settings, user } = useApp();
+  const { categories, scopeLocations: locations, settings, user } = useApp();
   const [assets, setAssets] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [expanded, setExpanded] = useState(new Set());

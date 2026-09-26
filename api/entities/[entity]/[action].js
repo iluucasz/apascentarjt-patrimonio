@@ -21,15 +21,16 @@ import {
   updateEntity,
 } from '../../_lib/entities.js';
 import { methodNotAllowed, requireUser, sendError, sendJson } from '../../_lib/http.js';
+import { checkEntityWrite, resolveScope, scopeForQuery } from '../../_lib/scope.js';
 
-async function handleList(req, res, pool, entity) {
+async function handleList(req, res, pool, entity, scope) {
   if (req.method !== 'GET') return methodNotAllowed(req, res, ['GET']);
   const { sort, limit } = req.query;
-  const rows = await listEntity(pool, entity, { sort, limit });
+  const rows = await listEntity(pool, entity, { sort, limit, scopeIds: scope.viewIds });
   sendJson(res, 200, rows);
 }
 
-async function handleFilter(req, res, pool, entity) {
+async function handleFilter(req, res, pool, entity, scope) {
   if (req.method !== 'GET') return methodNotAllowed(req, res, ['GET']);
   const { sort, limit, query } = req.query;
   let parsedQuery = {};
@@ -40,21 +41,26 @@ async function handleFilter(req, res, pool, entity) {
       return sendError(res, 400, 'Parâmetro query inválido');
     }
   }
-  const rows = await filterEntity(pool, entity, { query: parsedQuery, sort, limit });
+  const scopeIds = scopeForQuery(scope, parsedQuery);
+  const rows = await filterEntity(pool, entity, { query: parsedQuery, sort, limit, scopeIds });
   sendJson(res, 200, rows);
 }
 
-async function handleBulk(req, res, pool, entity) {
+async function handleBulk(req, res, pool, entity, scope) {
   if (req.method !== 'POST') return methodNotAllowed(req, res, ['POST']);
   if (entity === 'User') return sendError(res, 403, 'Não permitido para usuários');
   const dataArray = Array.isArray(req.body) ? req.body : [];
+  for (const data of dataArray) {
+    const denied = await checkEntityWrite(pool, entity, { data }, scope.restrictedIds);
+    if (denied) return sendError(res, 403, denied);
+  }
   const created = await bulkCreateEntity(pool, entity, dataArray);
   sendJson(res, 201, created);
 }
 
-async function handleById(req, res, pool, entity, id, user) {
+async function handleById(req, res, pool, entity, id, user, scope) {
   if (req.method === 'GET') {
-    const row = await getEntity(pool, entity, id);
+    const row = await getEntity(pool, entity, id, { scopeIds: scope.restrictedIds });
     if (!row) return sendError(res, 404, 'Não encontrado');
     return sendJson(res, 200, row);
   }
@@ -63,6 +69,8 @@ async function handleById(req, res, pool, entity, id, user) {
     if (entity === 'User' && user.role !== 'admin') {
       return sendError(res, 403, 'Apenas administradores podem editar usuários');
     }
+    const denied = await checkEntityWrite(pool, entity, { id, data: req.body || {} }, scope.restrictedIds);
+    if (denied) return sendError(res, 403, denied);
     try {
       const updated = await updateEntity(pool, entity, id, req.body || {});
       return sendJson(res, 200, updated);
@@ -86,6 +94,8 @@ async function handleById(req, res, pool, entity, id, user) {
         }
       }
     }
+    const denied = await checkEntityWrite(pool, entity, { id }, scope.restrictedIds);
+    if (denied) return sendError(res, 403, denied);
     const result = await deleteEntity(pool, entity, id);
     return sendJson(res, 200, result);
   }
@@ -103,11 +113,12 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
   const pool = getPool();
+  const scope = await resolveScope(pool, user, req);
 
-  if (action === 'list') return handleList(req, res, pool, entity);
-  if (action === 'filter') return handleFilter(req, res, pool, entity);
-  if (action === 'bulk') return handleBulk(req, res, pool, entity);
-  if (action) return handleById(req, res, pool, entity, action, user);
+  if (action === 'list') return handleList(req, res, pool, entity, scope);
+  if (action === 'filter') return handleFilter(req, res, pool, entity, scope);
+  if (action === 'bulk') return handleBulk(req, res, pool, entity, scope);
+  if (action) return handleById(req, res, pool, entity, action, user, scope);
 
   return sendError(res, 404, 'Rota não encontrada');
 }

@@ -25,7 +25,7 @@ const EMPTY_FORM = {
 const EMPTY_VARIANTS = [{ label: '', quantity: '' }];
 
 export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) {
-  const { categories, locations, settings } = useApp();
+  const { categories, scopeLocations: locations, settings } = useApp();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState(null);

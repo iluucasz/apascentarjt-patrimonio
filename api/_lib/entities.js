@@ -1,6 +1,8 @@
 // Mapeia cada entidade (nome usado pelo front) para sua tabela real no Postgres
 // e a lista de colunas editáveis, com o tipo usado para coerção de valores.
 
+import { SCOPE_CONDITIONS } from './scope.js';
+
 export const ENTITIES = {
   SystemSettings: {
     table: 'system_settings',
@@ -29,6 +31,7 @@ export const ENTITIES = {
       parent_location_id: 'uuid',
       parent_location_name: 'text',
       active: 'boolean',
+      is_main: 'boolean',
     },
   },
   Asset: {
@@ -154,6 +157,7 @@ export const ENTITIES = {
       role: 'text',
       email_verified: 'boolean',
       invited: 'boolean',
+      allowed_location_ids: 'uuid[]',
     },
     // password_hash nunca é exposto nem editável via API genérica de entidades.
     secret: true,
@@ -177,6 +181,8 @@ function coerceValue(type, value) {
       return Boolean(value);
     case 'jsonb':
       return JSON.stringify(value);
+    case 'uuid[]':
+      return Array.isArray(value) && value.length > 0 ? value : null;
     default:
       return value;
   }
@@ -195,10 +201,16 @@ function buildColumnValues(config, data) {
   return { cols, values };
 }
 
-function selectColumns(config) {
-  const cols = Object.keys(config.columns);
-  if (config.secret) return `id, ${cols.join(', ')}, created_date, updated_date`;
-  return '*';
+// Colunas que nunca saem pela API genérica. Selecionar * e remover depois (em
+// vez de listar as colunas no select) evita quebrar a leitura quando uma
+// coluna nova ainda não foi criada pela migração.
+const SECRET_COLUMNS = ['password_hash'];
+
+function clean(config, row) {
+  if (!row || !config.secret) return row;
+  const out = { ...row };
+  for (const col of SECRET_COLUMNS) delete out[col];
+  return out;
 }
 
 function assertSortField(config, field) {
@@ -206,26 +218,27 @@ function assertSortField(config, field) {
   throw new Error(`Campo de ordenação inválido: ${field}`);
 }
 
-export async function listEntity(pool, name, { sort, limit } = {}) {
-  const config = getEntityConfig(name);
-  let sql = `select ${selectColumns(config)} from ${config.table}`;
-  if (sort) {
-    const desc = sort.startsWith('-');
-    const field = assertSortField(config, desc ? sort.slice(1) : sort);
-    sql += ` order by ${field} ${desc ? 'desc' : 'asc'}`;
-  } else {
-    sql += ' order by created_date asc';
-  }
-  const params = [];
-  if (limit) {
-    params.push(Number(limit));
-    sql += ` limit $${params.length}`;
-  }
-  const { rows } = await pool.query(sql, params);
-  return rows;
+// Condição de escopo por filial/local (ver _lib/scope.js). scopeIds null = sem
+// filtro; array (mesmo vazio) = só registros desses locais.
+function pushScope(name, scopeIds, where, params) {
+  const condition = SCOPE_CONDITIONS[name];
+  if (!condition || !scopeIds) return;
+  params.push(scopeIds);
+  where.push(condition(`$${params.length}`));
 }
 
-export async function filterEntity(pool, name, { query = {}, sort, limit } = {}) {
+function orderBy(config, sort) {
+  if (!sort) return ' order by created_date asc';
+  const desc = sort.startsWith('-');
+  const field = assertSortField(config, desc ? sort.slice(1) : sort);
+  return ` order by ${field} ${desc ? 'desc' : 'asc'}`;
+}
+
+export async function listEntity(pool, name, { sort, limit, scopeIds = null } = {}) {
+  return filterEntity(pool, name, { sort, limit, scopeIds });
+}
+
+export async function filterEntity(pool, name, { query = {}, sort, limit, scopeIds = null } = {}) {
   const config = getEntityConfig(name);
   const params = [];
   const where = [];
@@ -234,27 +247,20 @@ export async function filterEntity(pool, name, { query = {}, sort, limit } = {})
     params.push(value);
     where.push(`${key} = $${params.length}`);
   }
-  let sql = `select ${selectColumns(config)} from ${config.table}`;
+  pushScope(name, scopeIds, where, params);
+  let sql = `select * from ${config.table}`;
   if (where.length) sql += ` where ${where.join(' and ')}`;
-  if (sort) {
-    const desc = sort.startsWith('-');
-    const field = assertSortField(config, desc ? sort.slice(1) : sort);
-    sql += ` order by ${field} ${desc ? 'desc' : 'asc'}`;
-  } else {
-    sql += ' order by created_date asc';
-  }
+  sql += orderBy(config, sort);
   if (limit) {
     params.push(Number(limit));
     sql += ` limit $${params.length}`;
   }
   const { rows } = await pool.query(sql, params);
-  return rows;
+  return rows.map((row) => clean(config, row));
 }
 
-export async function getEntity(pool, name, id) {
-  const config = getEntityConfig(name);
-  const sql = `select ${selectColumns(config)} from ${config.table} where id = $1`;
-  const { rows } = await pool.query(sql, [id]);
+export async function getEntity(pool, name, id, { scopeIds = null } = {}) {
+  const rows = await filterEntity(pool, name, { query: { id }, scopeIds });
   return rows[0] || null;
 }
 
@@ -263,10 +269,10 @@ export async function createEntity(pool, name, data) {
   const { cols, values } = buildColumnValues(config, data);
   const placeholders = cols.map((_, i) => `$${i + 1}`);
   const sql = cols.length
-    ? `insert into ${config.table} (${cols.join(', ')}) values (${placeholders.join(', ')}) returning ${selectColumns(config)}`
-    : `insert into ${config.table} default values returning ${selectColumns(config)}`;
+    ? `insert into ${config.table} (${cols.join(', ')}) values (${placeholders.join(', ')}) returning *`
+    : `insert into ${config.table} default values returning *`;
   const { rows } = await pool.query(sql, values);
-  return rows[0];
+  return clean(config, rows[0]);
 }
 
 export async function bulkCreateEntity(pool, name, dataArray) {
@@ -279,10 +285,10 @@ export async function bulkCreateEntity(pool, name, dataArray) {
       const { cols, values } = buildColumnValues(config, data);
       const placeholders = cols.map((_, i) => `$${i + 1}`);
       const sql = cols.length
-        ? `insert into ${config.table} (${cols.join(', ')}) values (${placeholders.join(', ')}) returning ${selectColumns(config)}`
-        : `insert into ${config.table} default values returning ${selectColumns(config)}`;
+        ? `insert into ${config.table} (${cols.join(', ')}) values (${placeholders.join(', ')}) returning *`
+        : `insert into ${config.table} default values returning *`;
       const { rows } = await client.query(sql, values);
-      created.push(rows[0]);
+      created.push(clean(config, rows[0]));
     }
     await client.query('commit');
     return created;
@@ -299,10 +305,10 @@ export async function updateEntity(pool, name, id, data) {
   const { cols, values } = buildColumnValues(config, data);
   const sets = cols.map((col, i) => `${col} = $${i + 2}`);
   sets.push('updated_date = now()');
-  const sql = `update ${config.table} set ${sets.join(', ')} where id = $1 returning ${selectColumns(config)}`;
+  const sql = `update ${config.table} set ${sets.join(', ')} where id = $1 returning *`;
   const { rows } = await pool.query(sql, [id, ...values]);
   if (!rows[0]) throw new Error(`${name} ${id} não encontrado`);
-  return rows[0];
+  return clean(config, rows[0]);
 }
 
 export async function deleteEntity(pool, name, id) {

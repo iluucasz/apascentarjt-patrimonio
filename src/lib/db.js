@@ -8,11 +8,33 @@ const ENTITY_NAMES = [
   'InventoryItem', 'User',
 ];
 
+// Filial escolhida no seletor da barra lateral. Vai em toda requisição (header
+// X-Filial) e o backend filtra as listagens por ela (ver api/_lib/scope.js).
+const FILIAL_KEY = 'filial_id';
+
+const filial = {
+  get() {
+    try { return localStorage.getItem(FILIAL_KEY) || ''; } catch { return ''; }
+  },
+  set(id) {
+    try {
+      if (id) localStorage.setItem(FILIAL_KEY, id);
+      else localStorage.removeItem(FILIAL_KEY);
+    } catch {
+      // sem localStorage (aba anônima etc.): fica só a visão geral
+    }
+  },
+};
+
 async function request(path, options = {}) {
+  const headers = {};
+  if (options.body) headers['Content-Type'] = 'application/json';
+  const filialId = filial.get();
+  if (filialId) headers['X-Filial'] = filialId;
   const res = await fetch(`/api${path}`, {
     method: options.method || 'GET',
     credentials: 'include',
-    headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
@@ -106,8 +128,8 @@ const auth = {
 };
 
 const users = {
-  async createUser(email, password, role) {
-    return request('/users/create', { method: 'POST', body: { email, password, role } });
+  async createUser(email, password, role, allowedLocationIds = []) {
+    return request('/users/create', { method: 'POST', body: { email, password, role, allowed_location_ids: allowedLocationIds } });
   },
 };
 
@@ -139,5 +161,5 @@ const functions = {
   },
 };
 
-export const db = { auth, entities, integrations, functions, users };
+export const db = { auth, entities, integrations, functions, users, filial };
 export default db;
