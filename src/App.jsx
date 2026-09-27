@@ -8,6 +8,7 @@ import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { AppProvider } from '@/lib/AppContext';
 import { Toaster as SonnerToaster } from 'sonner';
+import UpdateNotifier from '@/components/UpdateNotifier';
 // Auth pages
 import Login from '@/pages/Login';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -82,6 +83,7 @@ function App() {
         </Router>
         <Toaster />
         <SonnerToaster richColors position="top-right" />
+        <UpdateNotifier />
       </QueryClientProvider>
     </AuthProvider>
   )

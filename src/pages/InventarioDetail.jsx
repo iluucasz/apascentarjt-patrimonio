@@ -188,8 +188,18 @@ export default function InventarioDetail() {
 
       {inventory.status === 'draft' && (
         <div className="rounded-xl border border-border bg-card p-6 text-center">
-          <p className="text-muted-foreground">O inventário está pronto para iniciar. Será gerada a lista dos patrimônios esperados nesta unidade (e nas salas dela; as filiais têm inventário próprio).</p>
-          <Button className="mt-4" onClick={startInventory} disabled={working}>{working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />} Iniciar inventário</Button>
+          {working ? (
+            <div className="py-4" role="status" aria-live="polite">
+              <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
+              <p className="font-medium mt-3">Gerando a lista de patrimônios esperados…</p>
+              <p className="text-sm text-muted-foreground mt-1">Pode levar alguns segundos em unidades com muitos itens. Não feche esta página.</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-muted-foreground">O inventário está pronto para iniciar. Será gerada a lista dos patrimônios esperados nesta unidade (e nas salas dela; as filiais têm inventário próprio).</p>
+              <Button className="mt-4" onClick={startInventory}><Play className="w-4 h-4 mr-2" /> Iniciar inventário</Button>
+            </>
+          )}
         </div>
       )}
 
@@ -279,7 +289,7 @@ export default function InventarioDetail() {
 
           <div className="flex gap-2 mt-4">
             {inventory.status === 'in_progress' && (
-              <Button variant="outline" onClick={finishInventory} disabled={working}>{working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCheck className="w-4 h-4 mr-2" />} Finalizar inventário</Button>
+              <Button variant="outline" onClick={finishInventory} disabled={working}>{working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCheck className="w-4 h-4 mr-2" />} {working ? 'Finalizando…' : 'Finalizar inventário'}</Button>
             )}
             <Button variant="outline" onClick={exportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
           </div>
