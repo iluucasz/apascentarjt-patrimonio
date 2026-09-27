@@ -4,15 +4,15 @@
   "properties": {
     "asset_number": {
       "type": "string",
-      "title": "N\u00famero patrimonial"
+      "title": "Número patrimonial"
     },
     "name": {
       "type": "string",
-      "title": "Nome do patrim\u00f4nio"
+      "title": "Nome do patrimônio"
     },
     "description": {
       "type": "string",
-      "title": "Descri\u00e7\u00e3o"
+      "title": "Descrição"
     },
     "category_id": {
       "type": "string",
@@ -32,11 +32,11 @@
     },
     "serial_number": {
       "type": "string",
-      "title": "N\u00famero de s\u00e9rie"
+      "title": "Número de série"
     },
     "location_id": {
       "type": "string",
-      "title": "Local (ID)"
+      "title": "Unidade (ID)"
     },
     "location_name": {
       "type": "string",
@@ -44,16 +44,16 @@
     },
     "responsible_person": {
       "type": "string",
-      "title": "Respons\u00e1vel"
+      "title": "Responsável"
     },
     "acquisition_date": {
       "type": "string",
       "format": "date",
-      "title": "Data de aquisi\u00e7\u00e3o"
+      "title": "Data de aquisição"
     },
     "acquisition_value": {
       "type": "number",
-      "title": "Valor de aquisi\u00e7\u00e3o"
+      "title": "Valor de aquisição"
     },
     "supplier": {
       "type": "string",
@@ -61,7 +61,7 @@
     },
     "invoice_number": {
       "type": "string",
-      "title": "N\u00famero da nota fiscal"
+      "title": "Número da nota fiscal"
     },
     "status": {
       "type": "string",
@@ -87,11 +87,11 @@
         "damaged"
       ],
       "default": "good",
-      "title": "Estado de conserva\u00e7\u00e3o"
+      "title": "Estado de conservação"
     },
     "notes": {
       "type": "string",
-      "title": "Observa\u00e7\u00f5es"
+      "title": "Observações"
     },
     "photo_url": {
       "type": "string",
@@ -117,7 +117,7 @@
     },
     "disposed_notes": {
       "type": "string",
-      "title": "Observa\u00e7\u00e3o da baixa"
+      "title": "Observação da baixa"
     },
     "variant": {
       "type": "string",
@@ -126,6 +126,11 @@
     "batch_id": {
       "type": "string",
       "title": "Lote (ID)"
+    },
+    "location_detail": {
+      "type": "string",
+      "title": "Local",
+      "description": "Onde o item fica dentro da unidade (ex.: Salão, armário 2). A unidade é location_id/location_name."
     }
   },
   "required": [

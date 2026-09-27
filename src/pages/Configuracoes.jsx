@@ -80,7 +80,7 @@ export default function Configuracoes() {
           </div>
           <div>
             <Label>Cor de fundo do ícone</Label>
-            <p className="text-xs text-muted-foreground mb-1.5">Fundo do quadrado da logo na barra lateral. Cada local pode ter a sua em Locais; quem não tiver usa esta.</p>
+            <p className="text-xs text-muted-foreground mb-1.5">Fundo do quadrado da logo na barra lateral. Cada unidade pode ter a sua em Unidades; quem não tiver usa esta.</p>
             <div className="flex items-center gap-3">
               <BrandMark logoUrl={form.church_logo_url} bgColor={form.logo_bg_color} className="w-12 h-12" iconClassName="w-6 h-6" />
               <input type="color" value={form.logo_bg_color || '#111827'} onChange={(e) => set('logo_bg_color', e.target.value)} className="h-9 w-14 cursor-pointer rounded border border-input bg-transparent" />

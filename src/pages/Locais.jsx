@@ -68,7 +68,7 @@ export default function Locais() {
   const mainLocation = mainLocationOf(otherLocations);
   const parentLocation = otherLocations.find((l) => l.id === form.parent_location_id);
   const inheritLabel = parentLocation
-    ? `do local pai (${parentLocation.name})`
+    ? `da unidade pai (${parentLocation.name})`
     : mainLocation ? `da matriz principal (${mainLocation.name})` : 'das configurações';
 
   const save = async () => {
@@ -89,7 +89,7 @@ export default function Locais() {
       }
       setOpen(false);
       await refresh();
-      toast.success('Local salvo');
+      toast.success('Unidade salva');
     } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao salvar'); }
   };
 
@@ -121,9 +121,9 @@ export default function Locais() {
       await db.entities.Location.delete(deleteTarget.id);
       setDeleteTarget(null);
       await refresh();
-      toast.success('Local excluído');
+      toast.success('Unidade excluída');
     } catch (e) {
-      toast.error('Erro ao excluir local');
+      toast.error('Erro ao excluir unidade');
     } finally {
       setDeleting(false);
     }
@@ -131,11 +131,11 @@ export default function Locais() {
 
   return (
     <Layout>
-      <PageHeader title="Locais" description="Local sem local pai é a matriz; os locais dentro dela são as filiais e aparecem no seletor da barra lateral. Escolher a matriz mostra o patrimônio de todas.">
-        <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Novo local</Button>
+      <PageHeader title="Unidades" description="Unidade sem unidade pai é a matriz; as unidades dentro dela são as filiais e aparecem no seletor da barra lateral. Escolher a matriz mostra o patrimônio de todas.">
+        <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Nova unidade</Button>
       </PageHeader>
       {scopeLocations.length === 0 ? (
-        <EmptyState icon={MapPin} title="Nenhum local cadastrado" action={<Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Novo local</Button>} />
+        <EmptyState icon={MapPin} title="Nenhuma unidade cadastrada" action={<Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Nova unidade</Button>} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {tree.map(({ location: l }) => (
@@ -172,10 +172,10 @@ export default function Locais() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? 'Editar local' : 'Novo local'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? 'Editar unidade' : 'Nova unidade'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm(f => ({...f, name: e.target.value}))} /></div>
-            <div><Label>Local pai (opcional)</Label><Select value={form.parent_location_id || NO_PARENT} onValueChange={(v) => setForm(f => ({...f, parent_location_id: v === NO_PARENT ? '' : v}))}><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger><SelectContent><SelectItem value={NO_PARENT}>Nenhum (é a matriz)</SelectItem>{scopeLocations.filter((l) => l.id !== editing?.id).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Unidade pai (opcional)</Label><Select value={form.parent_location_id || NO_PARENT} onValueChange={(v) => setForm(f => ({...f, parent_location_id: v === NO_PARENT ? '' : v}))}><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger><SelectContent><SelectItem value={NO_PARENT}>Nenhum (é a matriz)</SelectItem>{scopeLocations.filter((l) => l.id !== editing?.id).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => setForm(f => ({...f, description: e.target.value}))} rows={2} /></div>
             <LocationBrandingFields value={form} onChange={setForm} inherited={inheritedBranding} inheritLabel={inheritLabel} onUploadingChange={setUploadingLogo} />
           </div>
@@ -186,8 +186,8 @@ export default function Locais() {
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
-        title="Excluir local?"
-        description={`Tem certeza que deseja excluir "${deleteTarget?.name}"? ${deleteTarget ? count(deleteTarget.id) : 0} patrimônio(s) estão neste local e ficarão sem local. Essa ação não pode ser desfeita.`}
+        title="Excluir unidade?"
+        description={`Tem certeza que deseja excluir "${deleteTarget?.name}"? ${deleteTarget ? count(deleteTarget.id) : 0} patrimônio(s) estão nesta unidade e ficarão sem unidade. Essa ação não pode ser desfeita.`}
         confirmLabel="Excluir"
         loading={deleting}
         onConfirm={confirmDelete}

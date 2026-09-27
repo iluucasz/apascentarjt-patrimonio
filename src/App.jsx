@@ -59,7 +59,8 @@ const AuthenticatedApp = () => {
           <Route path="/inventarios/:id" element={<InventarioDetail />} />
           <Route path="/movimentacoes" element={<Movimentacoes />} />
           <Route path="/manutencoes" element={<Manutencoes />} />
-          <Route path="/locais" element={<Locais />} />
+          <Route path="/unidades" element={<Locais />} />
+          <Route path="/locais" element={<Navigate to="/unidades" replace />} />
           <Route path="/categorias" element={<Categorias />} />
           <Route path="/etiquetas" element={<Etiquetas />} />
           <Route path="/usuarios" element={<Usuarios />} />

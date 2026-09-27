@@ -37,7 +37,7 @@ export default function AssetDetail() {
 
   // move modal
   const [moveOpen, setMoveOpen] = useState(false);
-  const [moveForm, setMoveForm] = useState({ to_location_id: '', responsible_person: '', movement_type: 'transfer', notes: '' });
+  const [moveForm, setMoveForm] = useState({ to_location_id: '', location_detail: '', responsible_person: '', movement_type: 'transfer', notes: '' });
   // maintenance modal
   const [maintOpen, setMaintOpen] = useState(false);
   const [maintForm, setMaintForm] = useState({ description: '', provider: '', start_date: '', cost: '', notes: '' });
@@ -71,7 +71,7 @@ export default function AssetDetail() {
   const qrUrl = asset ? `${appUrl}/p/${asset.asset_number}` : '';
 
   const handleMove = async () => {
-    if (!moveForm.to_location_id) { toast.error('Selecione o novo local'); return; }
+    if (!moveForm.to_location_id) { toast.error('Selecione a nova unidade'); return; }
     try {
       const loc = locations.find((l) => l.id === moveForm.to_location_id);
       await db.entities.AssetMovement.create({
@@ -81,10 +81,10 @@ export default function AssetDetail() {
         responsible_person: moveForm.responsible_person, movement_type: moveForm.movement_type,
         notes: moveForm.notes, moved_by_name: user?.full_name || user?.email
       });
-      await db.entities.Asset.update(asset.id, { location_id: moveForm.to_location_id, location_name: loc?.name || '' });
+      await db.entities.Asset.update(asset.id, { location_id: moveForm.to_location_id, location_name: loc?.name || '', location_detail: moveForm.location_detail });
       await db.entities.AuditLog.create({ action: 'asset_move', entity_type: 'Asset', entity_id: asset.id, entity_label: asset.asset_number, user_name: user?.full_name || user?.email });
       setMoveOpen(false);
-      setMoveForm({ to_location_id: '', responsible_person: '', movement_type: 'transfer', notes: '' });
+      setMoveForm({ to_location_id: '', location_detail: '', responsible_person: '', movement_type: 'transfer', notes: '' });
       await load();
       toast.success('Movimentação registrada');
     } catch (e) { toast.error('Erro ao movimentar'); }
@@ -220,7 +220,8 @@ export default function AssetDetail() {
               <div className="rounded-xl border border-border bg-card p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <Info label="Categoria" value={asset.category_name} />
                 {asset.variant && <Info label="Variante" value={asset.variant} />}
-                <Info label="Localização atual" value={asset.location_name} />
+                <Info label="Unidade" value={asset.location_name} />
+                <Info label="Local" value={asset.location_detail} />
                 <Info label="Marca" value={asset.brand} />
                 <Info label="Modelo" value={asset.model} />
                 <Info label="Número de série" value={asset.serial_number} />
@@ -335,8 +336,9 @@ export default function AssetDetail() {
           <DialogHeader><DialogTitle>Movimentar patrimônio</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">{asset.asset_number} · {asset.name}</div>
-            <div className="text-sm">Local atual: <span className="font-medium">{asset.location_name || '-'}</span></div>
-            <div><Label>Novo local</Label><Select value={moveForm.to_location_id} onValueChange={(v) => setMoveForm(f => ({...f, to_location_id: v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="text-sm">Unidade atual: <span className="font-medium">{asset.location_name || '-'}</span></div>
+            <div><Label>Nova unidade</Label><Select value={moveForm.to_location_id} onValueChange={(v) => setMoveForm(f => ({...f, to_location_id: v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Local na nova unidade</Label><Input value={moveForm.location_detail} onChange={(e) => setMoveForm(f => ({...f, location_detail: e.target.value}))} placeholder="Ex: Salão, armário 2" /></div>
             <div><Label>Responsável</Label><Input value={moveForm.responsible_person} onChange={(e) => setMoveForm(f => ({...f, responsible_person: e.target.value}))} /></div>
             <div><Label>Tipo</Label><Select value={moveForm.movement_type} onValueChange={(v) => setMoveForm(f => ({...f, movement_type: v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(MOVEMENT_LABELS).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Observação</Label><Textarea value={moveForm.notes} onChange={(e) => setMoveForm(f => ({...f, notes: e.target.value}))} rows={2} /></div>

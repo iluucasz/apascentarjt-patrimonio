@@ -39,7 +39,7 @@ export default function LocationBrandingFields({ value, onChange, inherited, inh
     <div className="rounded-lg border border-border p-3 space-y-3">
       <div className="flex items-center gap-3">
         <BrandMark logoUrl={logoUrl} bgColor={bgColor} className="w-12 h-12" iconClassName="w-6 h-6" />
-        <p className="text-xs text-muted-foreground">Ícone mostrado na barra lateral quando este local estiver selecionado.</p>
+        <p className="text-xs text-muted-foreground">Ícone mostrado na barra lateral quando esta unidade estiver selecionada.</p>
       </div>
 
       <div className="space-y-1.5">

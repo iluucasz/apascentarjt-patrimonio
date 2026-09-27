@@ -20,7 +20,7 @@ import AssetBarcode from '@/components/AssetBarcode';
 const EMPTY_FORM = {
   name: '', description: '', category_id: '', brand: '', model: '', serial_number: '',
   location_id: '', responsible_person: '', acquisition_date: '', acquisition_value: '',
-  supplier: '', invoice_number: '', condition: 'good', status: 'active', notes: '', photo_url: ''
+  supplier: '', invoice_number: '', condition: 'good', status: 'active', notes: '', photo_url: '', location_detail: ''
 };
 const EMPTY_VARIANTS = [{ label: '', quantity: '' }];
 
@@ -77,7 +77,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.category_id || !form.location_id) {
-      toast.error('Preencha nome, categoria e local');
+      toast.error('Preencha nome, categoria e unidade');
       return;
     }
     if (isMulti && useVariants && variantSum !== qty) {
@@ -128,7 +128,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
             <h2 className="text-xl font-bold">{created.count} patrimônios cadastrados com sucesso</h2>
             <p className="text-muted-foreground mt-1">{created.name}</p>
             <p className="font-mono text-lg font-bold mt-3 text-primary">{created.first_asset_number} — {created.last_asset_number}</p>
-            <p className="text-xs text-muted-foreground mt-1">Cada unidade tem seu próprio número e QR Code, prontos para imprimir.</p>
+            <p className="text-xs text-muted-foreground mt-1">Cada item tem seu próprio número e QR Code, prontos para imprimir.</p>
             <div className="flex flex-col sm:flex-row gap-2 mt-6">
               <Button className="flex-1" onClick={() => { handleOpenChange(false); navigate(`/patrimonios/lote/${created.batch_id}`); }}>Ver lote</Button>
               <Button variant="outline" className="flex-1" onClick={() => { handleOpenChange(false); navigate(`/etiquetas?batch_id=${created.batch_id}`); }}><Printer className="w-4 h-4 mr-2" /> Imprimir etiquetas</Button>
@@ -181,7 +181,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
           <DialogTitle>Novo patrimônio</DialogTitle>
           <DialogDescription>
             {isMulti
-              ? 'Cada unidade vira um patrimônio independente, com seu próprio número e QR Code'
+              ? 'Cada item vira um patrimônio independente, com seu próprio número e QR Code'
               : 'O número patrimonial será gerado automaticamente'}
           </DialogDescription>
         </DialogHeader>
@@ -210,12 +210,13 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
                 </Select>
               </div>
               <div>
-                <Label>Local *</Label>
+                <Label>Unidade *</Label>
                 <Select value={form.location_id} onValueChange={(v) => set('location_id', v)} required>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <div><Label>Local</Label><Input value={form.location_detail} onChange={(e) => set('location_detail', e.target.value)} placeholder="Ex: Salão, armário 2" /><p className="text-xs text-muted-foreground mt-1">Onde o item fica dentro da unidade.</p></div>
               <div className="md:col-span-2">
                 <Label>Descrição</Label>
                 <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} />
@@ -284,7 +285,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
                     <Button type="button" size="sm" variant="outline" onClick={addVariant}><Plus className="w-4 h-4 mr-1" /> Adicionar variante</Button>
                   </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Serão criadas {qty} unidades idênticas, cada uma com número e QR Code próprios.</p>
+                  <p className="text-xs text-muted-foreground">Serão criados {qty} itens idênticos, cada um com número e QR Code próprios.</p>
                 )}
               </div>
             )}

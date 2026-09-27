@@ -152,7 +152,7 @@ export default function Etiquetas() {
               <div><Label>De</Label><Input value={fromNum} onChange={(e) => setFromNum(e.target.value.toUpperCase())} placeholder="PAT-000001" /></div>
               <div><Label>Até</Label><Input value={toNum} onChange={(e) => setToNum(e.target.value.toUpperCase())} placeholder="PAT-000050" /></div>
               <div><Label>Categoria</Label><Select value={filterCat} onValueChange={setFilterCat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todas</SelectItem>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>Local</Label><Select value={filterLoc} onValueChange={setFilterLoc}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>Unidade</Label><Select value={filterLoc} onValueChange={setFilterLoc}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div className="flex gap-2 mt-3">
               <Button size="sm" variant="outline" onClick={applyRange}>Selecionar filtrados</Button>
@@ -177,7 +177,7 @@ export default function Etiquetas() {
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0"><Layers className="w-3.5 h-3.5" /> Lote</span>
                     <span className="text-sm flex-1 truncate">
                       <span className="font-medium">{r.name}</span>{' '}
-                      <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5">{r.units.length} unidades</span>
+                      <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5">{r.units.length} itens</span>
                     </span>
                     <span className="text-xs text-muted-foreground hidden sm:block">{r.category_name} · {r.location_name}</span>
                   </div>

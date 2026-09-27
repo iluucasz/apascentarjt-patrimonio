@@ -54,7 +54,7 @@ export default function InventarioDetail() {
       else assets = await db.entities.Asset.filter({ location_id: inventory.location_id }, '-asset_number');
       // exclude disposed
       assets = assets.filter((a) => a.status !== 'disposed');
-      if (assets.length === 0) { toast.error('Nenhum patrimônio neste local'); return; }
+      if (assets.length === 0) { toast.error('Nenhum patrimônio nesta unidade'); return; }
       await db.entities.InventoryItem.bulkCreate(assets.map((a) => ({
         inventory_id: id,
         asset_id: a.id,
@@ -99,7 +99,7 @@ export default function InventarioDetail() {
       const item = items.find((i) => i.asset_id === asset.id);
       if (!item) {
         // asset exists but not expected in this inventory
-        setFeedback({ type: 'misplaced', code, asset, message: 'Patrimônio encontrado em local diferente' });
+        setFeedback({ type: 'misplaced', code, asset, message: 'Patrimônio encontrado em outra unidade' });
         try { navigator.vibrate && navigator.vibrate(100); } catch(e){}
         setLoading(false);
         return;
@@ -172,7 +172,7 @@ export default function InventarioDetail() {
   };
 
   const exportCsv = () => {
-    const rows = [['Número', 'Nome', 'Local esperado', 'Local encontrado', 'Status', 'Escaneado em', 'Por']];
+    const rows = [['Número', 'Nome', 'Unidade esperada', 'Unidade encontrada', 'Status', 'Escaneado em', 'Por']];
     items.forEach((i) => rows.push([i.asset_number, i.asset_name, i.expected_location_name, i.found_location_name || '', INV_ITEM_LABELS[i.status], i.scanned_at ? formatDateTime(i.scanned_at) : '', i.scanned_by_name || '']));
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -188,7 +188,7 @@ export default function InventarioDetail() {
 
   return (
     <Layout>
-      <PageHeader title={inventory.name} description={`${inventory.location_name || 'Todos os locais'} · ${formatDateTime(inventory.created_date)}`} />
+      <PageHeader title={inventory.name} description={`${inventory.location_name || 'Todas as unidades'} · ${formatDateTime(inventory.created_date)}`} />
 
       {inventory.status === 'draft' && (
         <div className="rounded-xl border border-border bg-card p-6 text-center">
@@ -203,7 +203,7 @@ export default function InventarioDetail() {
             <Stat label="Esperados" value={s.expected} />
             <Stat label="Encontrados" value={s.found} color="text-emerald-600" />
             <Stat label="Pendentes" value={s.pending} color="text-slate-600" />
-            <Stat label="Local incorreto" value={s.misplaced} color="text-amber-600" />
+            <Stat label="Unidade incorreta" value={s.misplaced} color="text-amber-600" />
           </div>
 
           {inventory.status === 'in_progress' && !scanning && !feedback && !manual && (
@@ -245,7 +245,7 @@ export default function InventarioDetail() {
               {feedback.type === 'misplaced' && (
                 <div className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-900 rounded-xl p-5">
                   <AlertTriangle className="w-12 h-12 text-amber-600 mx-auto" />
-                  <p className="font-semibold mt-2">{feedback.message || 'Local incorreto'}</p>
+                  <p className="font-semibold mt-2">{feedback.message || 'Unidade incorreta'}</p>
                   <p className="font-mono">{feedback.code}</p>
                   <p className="text-sm text-muted-foreground">Esperado: {feedback.item?.expected_location_name || '-'}</p>
                   <p className="text-sm text-muted-foreground">Encontrado: {feedback.asset?.location_name || '-'}</p>

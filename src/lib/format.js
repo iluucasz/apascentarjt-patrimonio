@@ -88,7 +88,7 @@ export const INVENTORY_STATUS_LABELS = {
 export const INV_ITEM_LABELS = {
   pending: 'Pendente',
   found: 'Encontrado',
-  misplaced: 'Local incorreto',
+  misplaced: 'Unidade incorreta',
   not_found: 'Não encontrado'
 };
 

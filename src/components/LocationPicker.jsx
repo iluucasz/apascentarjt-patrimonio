@@ -27,7 +27,7 @@ export default function LocationPicker({ locations, value, onChange }) {
   };
 
   if (locations.length === 0) {
-    return <p className="text-sm text-muted-foreground">Nenhum local cadastrado.</p>;
+    return <p className="text-sm text-muted-foreground">Nenhuma unidade cadastrada.</p>;
   }
 
   return (

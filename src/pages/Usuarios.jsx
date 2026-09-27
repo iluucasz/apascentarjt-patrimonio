@@ -73,9 +73,9 @@ export default function Usuarios() {
       await db.entities.User.update(accessTarget.id, { allowed_location_ids: accessValue });
       setAccessTarget(null);
       await load();
-      toast.success('Locais do usuário atualizados');
+      toast.success('Unidades do usuário atualizadas');
     } catch (e) {
-      toast.error(e?.response?.data?.error || 'Erro ao salvar locais');
+      toast.error(e?.response?.data?.error || 'Erro ao salvar unidades');
     } finally {
       setSavingAccess(false);
     }
@@ -124,7 +124,7 @@ export default function Usuarios() {
               <th className="text-left font-medium px-4 py-3">Nome</th>
               <th className="text-left font-medium px-4 py-3">E-mail</th>
               <th className="text-left font-medium px-4 py-3">Perfil</th>
-              <th className="text-left font-medium px-4 py-3">Locais</th>
+              <th className="text-left font-medium px-4 py-3">Unidades</th>
               <th className="text-left font-medium px-4 py-3 hidden sm:table-cell">Cadastro</th>
               <th className="text-right font-medium px-4 py-3">Ações</th>
             </tr></thead>
@@ -147,7 +147,7 @@ export default function Usuarios() {
                     {u.role === 'admin' ? (
                       <span className="text-muted-foreground">{accessLabel(u)}</span>
                     ) : (
-                      <button onClick={() => openAccess(u)} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-accent text-left" title="Definir locais que este usuário pode ver">
+                      <button onClick={() => openAccess(u)} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-accent text-left" title="Definir unidades que este usuário pode ver">
                         <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className="truncate max-w-[180px]">{accessLabel(u)}</span>
                       </button>
@@ -179,8 +179,8 @@ export default function Usuarios() {
             <div><Label>Perfil</Label><Select value={newRole} onValueChange={setNewRole}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="user">Leitor / Inventariante</SelectItem><SelectItem value="manager">Gestor</SelectItem><SelectItem value="admin">Administrador</SelectItem></SelectContent></Select></div>
             {newRole !== 'admin' && (
               <div>
-                <Label>Locais que pode ver</Label>
-                <p className="text-xs text-muted-foreground mb-1.5">Deixe tudo desmarcado para ver todos os locais.</p>
+                <Label>Unidades que pode ver</Label>
+                <p className="text-xs text-muted-foreground mb-1.5">Deixe tudo desmarcado para ver todas as unidades.</p>
                 <LocationPicker locations={locations} value={newAllowed} onChange={setNewAllowed} />
               </div>
             )}
@@ -192,11 +192,11 @@ export default function Usuarios() {
 
       <Dialog open={!!accessTarget} onOpenChange={(v) => { if (!v) setAccessTarget(null); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Locais que {accessTarget?.full_name || accessTarget?.email} pode ver</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Unidades que {accessTarget?.full_name || accessTarget?.email} pode ver</DialogTitle></DialogHeader>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              O usuário só vê os patrimônios, movimentações, manutenções e inventários dos locais marcados (e dos sublocais deles).
-              Ele ainda pode movimentar um item dele para outro local. Deixe tudo desmarcado para liberar todos os locais.
+              O usuário só vê os patrimônios, movimentações, manutenções e inventários das unidades marcadas (e das unidades dentro delas).
+              Ele ainda pode movimentar um item dele para outra unidade. Deixe tudo desmarcado para liberar todas as unidades.
             </p>
             <LocationPicker locations={locations} value={accessValue} onChange={setAccessValue} />
           </div>

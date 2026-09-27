@@ -80,7 +80,7 @@ export function AppProvider({ children }) {
     const byName = (a, b) => a.name.localeCompare(b.name);
     if (restrictedIds) {
       const own = locations.filter((l) => restrictedIds.includes(l.id)).sort(byName).map((l) => ({ id: l.id, name: l.name }));
-      return own.length > 1 ? [{ id: '', name: 'Todos os meus locais', overview: true }, ...own] : own;
+      return own.length > 1 ? [{ id: '', name: 'Todas as minhas unidades', overview: true }, ...own] : own;
     }
     const active = locations.filter((l) => l.active !== false);
     const roots = locations.filter((l) => !l.parent_location_id && (l.active !== false || l.id === mainLocation?.id))

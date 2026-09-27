@@ -37,7 +37,7 @@ export default function EditarLote() {
   const { user, categories, locations } = useApp();
   const [units, setUnits] = useState(null);
   const [form, setForm] = useState(null);
-  const [mixed, setMixed] = useState({ status: false, condition: false, location: false });
+  const [mixed, setMixed] = useState({ status: false, condition: false, location: false, detail: false });
   const [variantRows, setVariantRows] = useState([]);
   const [uploadingKey, setUploadingKey] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -54,13 +54,14 @@ export default function EditarLote() {
         const status = uniformValue(list, 'status');
         const condition = uniformValue(list, 'condition');
         const location = uniformValue(list, 'location_id');
-        setMixed({ status: status === null, condition: condition === null, location: location === null });
+        const detail = uniformValue(list, 'location_detail');
+        setMixed({ status: status === null, condition: condition === null, location: location === null, detail: detail === null });
         setForm({
           name: first.name || '', description: first.description || '', category_id: first.category_id || '',
           brand: first.brand || '', model: first.model || '', location_id: location ?? KEEP,
           responsible_person: first.responsible_person || '', acquisition_date: first.acquisition_date || '',
           acquisition_value: first.acquisition_value || '', supplier: first.supplier || '', invoice_number: first.invoice_number || '',
-          notes: first.notes || '', status: status ?? KEEP, condition: condition ?? KEEP,
+          notes: first.notes || '', status: status ?? KEEP, condition: condition ?? KEEP, location_detail: detail ?? '',
         });
         const groups = new Map();
         for (const u of list) {
@@ -102,8 +103,8 @@ export default function EditarLote() {
     if (activeRows.some((r) => r.isNew && !r.label.trim())) return 'Informe o nome de cada variante nova';
     const labels = activeRows.map((r) => rowLabel(r).toLowerCase());
     if (new Set(labels).size !== labels.length) return 'Há variantes com o mesmo nome';
-    if (total < 1) return 'O lote precisa ter ao menos uma unidade. Para apagar tudo, use "Excluir lote inteiro".';
-    if (total > MAX_BATCH_QUANTITY) return `Máximo de ${MAX_BATCH_QUANTITY} unidades por lote`;
+    if (total < 1) return 'O lote precisa ter ao menos um item. Para apagar tudo, use "Excluir lote inteiro".';
+    if (total > MAX_BATCH_QUANTITY) return `Máximo de ${MAX_BATCH_QUANTITY} itens por lote`;
     if (removed > 0 && !canReduce) return 'Apenas administradores podem reduzir a quantidade';
     return null;
   };
@@ -127,6 +128,8 @@ export default function EditarLote() {
         location_id: form.location_id === KEEP ? null : form.location_id,
         status: form.status === KEEP ? null : form.status,
         condition: form.condition === KEEP ? null : form.condition,
+        // Itens com Locais diferentes e campo em branco = manter o de cada item.
+        location_detail: mixed.detail && !form.location_detail ? null : form.location_detail,
         acquisition_value: form.acquisition_value ? Number(form.acquisition_value) : 0,
         variants: variantRows
           .filter((r) => !(r.isNew && qtyOf(r) === 0))
@@ -134,8 +137,8 @@ export default function EditarLote() {
       });
       const { added: addedCount, removed: removedCount } = res.data;
       const parts = ['Lote atualizado'];
-      if (addedCount) parts.push(`${addedCount} unidade${addedCount === 1 ? '' : 's'} nova${addedCount === 1 ? '' : 's'} (lembre de imprimir as etiquetas)`);
-      if (removedCount) parts.push(`${removedCount} unidade${removedCount === 1 ? '' : 's'} excluída${removedCount === 1 ? '' : 's'}`);
+      if (addedCount) parts.push(`${addedCount} ite${addedCount === 1 ? 'm' : 'ns'} novo${addedCount === 1 ? '' : 's'} (lembre de imprimir as etiquetas)`);
+      if (removedCount) parts.push(`${removedCount} ite${removedCount === 1 ? 'm' : 'ns'} excluído${removedCount === 1 ? '' : 's'}`);
       toast.success(parts.join(' · '));
       navigate(`/patrimonios/lote/${batchId}`);
     } catch (err) { toast.error(err?.response?.data?.error || 'Erro ao atualizar lote'); }
@@ -148,29 +151,33 @@ export default function EditarLote() {
 
   return (
     <Layout>
-      <PageHeader title="Editar lote" description={`${units.length} unidades`} />
+      <PageHeader title="Editar lote" description={`${units.length} itens`} />
       <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2"><Label>Nome do patrimônio *</Label><Input value={form.name} onChange={(e) => set('name', e.target.value)} required /></div>
             <div><Label>Categoria</Label><Select value={form.category_id} onValueChange={(v) => set('category_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
             <div>
-              <Label>Local</Label>
+              <Label>Unidade</Label>
               <Select value={form.location_id} onValueChange={(v) => set('location_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {mixed.location && <SelectItem value={KEEP}>Vários locais (manter cada unidade onde está)</SelectItem>}
+                  {mixed.location && <SelectItem value={KEEP}>Várias unidades (manter cada item onde está)</SelectItem>}
                   {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">Mudar o local registra uma transferência no histórico de cada unidade.</p>
+              <p className="text-xs text-muted-foreground mt-1">Mudar a unidade registra uma transferência no histórico de cada item.</p>
+            </div>
+            <div>
+              <Label>Local</Label>
+              <Input value={form.location_detail} onChange={(e) => set('location_detail', e.target.value)} placeholder={mixed.detail ? 'Vários (deixe em branco para manter o de cada item)' : 'Ex: Salão, armário 2'} />
             </div>
             <div>
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => set('status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {mixed.status && <SelectItem value={KEEP}>Vários (manter o de cada unidade)</SelectItem>}
+                  {mixed.status && <SelectItem value={KEEP}>Vários (manter o de cada item)</SelectItem>}
                   {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -180,7 +187,7 @@ export default function EditarLote() {
               <Select value={form.condition} onValueChange={(v) => set('condition', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {mixed.condition && <SelectItem value={KEEP}>Várias (manter a de cada unidade)</SelectItem>}
+                  {mixed.condition && <SelectItem value={KEEP}>Várias (manter a de cada item)</SelectItem>}
                   {Object.entries(CONDITION_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -196,7 +203,7 @@ export default function EditarLote() {
             <div className="md:col-span-2"><Label>Observações</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} /></div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Status e condição escolhidos aqui valem para todas as unidades. Para mudar só algumas, selecione-as na página do lote. O número de série continua individual de cada unidade.
+            Status e condição escolhidos aqui valem para todos os itens. Para mudar só alguns, selecione-os na página do lote. O número de série continua individual de cada item.
           </p>
         </div>
 
@@ -204,9 +211,9 @@ export default function EditarLote() {
           <div>
             <h3 className="font-semibold">{singleDefault ? 'Quantidade e foto' : 'Variantes, quantidades e fotos'}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Aumentar a quantidade cria novas unidades com números patrimoniais novos.
+              Aumentar a quantidade cria novos itens com números patrimoniais novos.
               {canReduce
-                ? ' Diminuir exclui as unidades cadastradas por último (para escolher quais, use a seleção na página do lote).'
+                ? ' Diminuir exclui os itens cadastrados por último (para escolher quais, use a seleção na página do lote).'
                 : ' Apenas administradores podem diminuir a quantidade.'}
             </p>
           </div>
@@ -241,9 +248,9 @@ export default function EditarLote() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus className="w-4 h-4 mr-1" /> Adicionar variante</Button>
             <div className="text-sm text-right">
-              <p className="font-medium">Total: {total} unidade{total === 1 ? '' : 's'}{total !== units.length && <span className="text-muted-foreground font-normal"> (antes {units.length})</span>}</p>
-              {added > 0 && <p className="text-xs text-emerald-600">+{added} unidade{added === 1 ? '' : 's'} nova{added === 1 ? '' : 's'}</p>}
-              {removed > 0 && <p className="text-xs text-destructive">−{removed} unidade{removed === 1 ? '' : 's'} será{removed === 1 ? '' : 'ão'} excluída{removed === 1 ? '' : 's'}</p>}
+              <p className="font-medium">Total: {total} ite{total === 1 ? 'm' : 'ns'}{total !== units.length && <span className="text-muted-foreground font-normal"> (antes {units.length})</span>}</p>
+              {added > 0 && <p className="text-xs text-emerald-600">+{added} ite{added === 1 ? 'm' : 'ns'} novo{added === 1 ? '' : 's'}</p>}
+              {removed > 0 && <p className="text-xs text-destructive">−{removed} ite{removed === 1 ? 'm' : 'ns'} será{removed === 1 ? '' : 'ão'} excluído{removed === 1 ? '' : 's'}</p>}
             </div>
           </div>
         </div>
@@ -257,8 +264,8 @@ export default function EditarLote() {
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={`Excluir ${removed} unidade${removed === 1 ? '' : 's'}?`}
-        description={`Diminuir a quantidade vai apagar ${removed} unidade${removed === 1 ? '' : 's'} (as cadastradas por último de cada variante) e todo o histórico delas. Para escolher exatamente quais unidades sair, cancele e use a seleção na página do lote. Essa ação não pode ser desfeita.`}
+        title={`Excluir ${removed} ite${removed === 1 ? 'm' : 'ns'}?`}
+        description={`Diminuir a quantidade vai apagar ${removed} ite${removed === 1 ? 'm' : 'ns'} (os cadastrados por último de cada variante) e todo o histórico deles. Para escolher exatamente quais itens sair, cancele e use a seleção na página do lote. Essa ação não pode ser desfeita.`}
         confirmLabel="Salvar e excluir"
         loading={saving}
         onConfirm={save}

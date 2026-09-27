@@ -91,6 +91,9 @@ alter table users add column if not exists allowed_location_ids uuid[];
 alter table locations add column if not exists logo_url text not null default '';
 alter table locations add column if not exists logo_bg_color text not null default '';
 alter table system_settings add column if not exists logo_bg_color text not null default '';
+-- "Local" do patrimônio: onde ele fica dentro da unidade (ex.: "Salão, armário 2").
+-- A unidade em si continua em location_id/location_name.
+alter table assets add column if not exists location_detail text not null default '';
 create index if not exists assets_batch_id_idx on assets (batch_id);
 
 create table if not exists asset_movements (

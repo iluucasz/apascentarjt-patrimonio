@@ -55,7 +55,7 @@ export default function Patrimonios() {
       if (location !== 'all' && a.location_id !== location) return false;
       if (condition !== 'all' && a.condition !== condition) return false;
       if (term) {
-        const hay = [a.asset_number, a.name, a.variant, a.brand, a.model, a.serial_number, a.responsible_person].filter(Boolean).join(' ').toLowerCase();
+        const hay = [a.asset_number, a.name, a.variant, a.brand, a.model, a.serial_number, a.responsible_person, a.location_name, a.location_detail].filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(term)) return false;
       }
       return true;
@@ -169,9 +169,9 @@ export default function Patrimonios() {
             </SelectContent>
           </Select>
           <Select value={location} onValueChange={(v) => { setLocation(v); setPage(1); }}>
-            <SelectTrigger><SelectValue placeholder="Local" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os locais</SelectItem>
+              <SelectItem value="all">Todas as unidades</SelectItem>
               {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -209,7 +209,7 @@ export default function Patrimonios() {
                   <th className="text-left font-medium px-4 py-3">Número</th>
                   <th className="text-left font-medium px-4 py-3">Patrimônio</th>
                   <th className="text-left font-medium px-4 py-3">Categoria</th>
-                  <th className="text-left font-medium px-4 py-3">Local</th>
+                  <th className="text-left font-medium px-4 py-3">Unidade</th>
                   <th className="text-left font-medium px-4 py-3">Responsável</th>
                   <th className="text-left font-medium px-4 py-3">Status</th>
                   <th className="text-left font-medium px-4 py-3">Condição</th>
@@ -232,11 +232,11 @@ export default function Patrimonios() {
                       <div className="flex items-center gap-2">
                         {a.photo_url ? <Image src={a.photo_url} className="w-8 h-8 rounded object-cover" fittingType="fill" /> : <div className="w-8 h-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>}
                         <span className="font-medium">{a.name}</span>
-                        <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5 shrink-0">{a.count} unidades</span>
+                        <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5 shrink-0">{a.count} itens</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{a.category_name || '-'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.locationCount > 1 ? `Vários locais (${a.locationCount})` : a.location_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.locationCount > 1 ? `Várias unidades (${a.locationCount})` : a.location_name || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{a.responsible_person || '-'}</td>
                     <td className="px-4 py-3"><AssetBadgeSummary kind="status" counts={a.statusCounts} /></td>
                     <td className="px-4 py-3"><AssetBadgeSummary kind="condition" counts={a.conditionCounts} /></td>
@@ -263,7 +263,7 @@ export default function Patrimonios() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{a.category_name || '-'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.location_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.location_name || '-'}{a.location_detail && <span className="block text-xs">{a.location_detail}</span>}</td>
                     <td className="px-4 py-3 text-muted-foreground">{a.responsible_person || '-'}</td>
                     <td className="px-4 py-3"><AssetStatusBadge status={a.status} /></td>
                     <td className="px-4 py-3"><AssetConditionBadge condition={a.condition} /></td>
@@ -287,9 +287,9 @@ export default function Patrimonios() {
                 <div className="flex items-center gap-3">
                   {a.photo_url ? <Image src={a.photo_url} className="w-12 h-12 rounded object-cover" fittingType="fill" /> : <div className="w-12 h-12 rounded bg-muted flex items-center justify-center"><Layers className="w-5 h-5 text-muted-foreground" /></div>}
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Layers className="w-3 h-3" /> Lote · {a.count} unidades</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Layers className="w-3 h-3" /> Lote · {a.count} itens</p>
                     <p className="font-medium truncate">{a.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.locationCount > 1 ? 'Vários locais' : a.location_name || '-'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.locationCount > 1 ? 'Várias unidades' : a.location_name || '-'}</p>
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       <AssetBadgeSummary kind="status" counts={a.statusCounts} />
                       <AssetBadgeSummary kind="condition" counts={a.conditionCounts} />

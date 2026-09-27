@@ -64,6 +64,7 @@ export const ENTITIES = {
       disposed_notes: 'text',
       variant: 'text',
       batch_id: 'uuid',
+      location_detail: 'text',
     },
   },
   AssetMovement: {

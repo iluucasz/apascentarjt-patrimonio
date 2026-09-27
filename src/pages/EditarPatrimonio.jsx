@@ -39,7 +39,7 @@ export default function EditarPatrimonio() {
           responsible_person: a.responsible_person || '', acquisition_date: a.acquisition_date || '',
           acquisition_value: a.acquisition_value || '', supplier: a.supplier || '', invoice_number: a.invoice_number || '',
           condition: a.condition || 'good', status: a.status || 'active', notes: a.notes || '', photo_url: a.photo_url || '',
-          variant: a.variant || ''
+          variant: a.variant || '', location_detail: a.location_detail || ''
         });
       } catch (e) { toast.error('Erro ao carregar'); }
     })();
@@ -72,7 +72,7 @@ export default function EditarPatrimonio() {
           asset_id: id, asset_number: original.asset_number, asset_name: form.name,
           from_location_id: original.location_id, from_location_name: original.location_name,
           to_location_id: form.location_id, to_location_name: loc?.name || '',
-          movement_type: 'transfer', notes: 'Local alterado na edição do patrimônio',
+          movement_type: 'transfer', notes: 'Unidade alterada na edição do patrimônio',
           moved_by_name: user?.full_name || user?.email
         });
       }
@@ -84,7 +84,7 @@ export default function EditarPatrimonio() {
       const qty = Math.floor(Number(quantity) || 1);
       if (!original.batch_id && qty > 1) {
         const res = await db.functions.invoke('expandAsset', { asset_id: id, quantity: qty });
-        toast.success(`Patrimônio atualizado · agora é um lote com ${qty} unidades (lembre de imprimir as etiquetas das novas)`);
+        toast.success(`Patrimônio atualizado · agora é um lote com ${qty} itens (lembre de imprimir as etiquetas das novas)`);
         navigate(`/patrimonios/lote/${res.data.batch_id}`);
         return;
       }
@@ -101,7 +101,7 @@ export default function EditarPatrimonio() {
       <PageHeader title="Editar patrimônio" description={original.asset_number} />
       {original.batch_id && (
         <div className="max-w-3xl mb-4 rounded-lg border border-border bg-muted/50 p-3 text-sm flex flex-wrap items-center justify-between gap-2">
-          <span className="flex items-center gap-2"><Layers className="w-4 h-4 text-muted-foreground" /> Esta unidade faz parte de um lote. As alterações abaixo valem só para ela.</span>
+          <span className="flex items-center gap-2"><Layers className="w-4 h-4 text-muted-foreground" /> Este item faz parte de um lote. As alterações abaixo valem só para ele.</span>
           <Link to={`/patrimonios/lote/${original.batch_id}/editar`} className="font-medium text-primary hover:underline">Editar lote / quantidade</Link>
         </div>
       )}
@@ -113,11 +113,12 @@ export default function EditarPatrimonio() {
               <div>
                 <Label>Quantidade</Label>
                 <Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-                {Number(quantity) > 1 && <p className="text-xs text-muted-foreground mt-1">Serão criadas mais {Math.floor(Number(quantity)) - 1} unidade(s) iguais a esta, cada uma com número e QR Code próprios, formando um lote.</p>}
+                {Number(quantity) > 1 && <p className="text-xs text-muted-foreground mt-1">Serão criados mais {Math.floor(Number(quantity)) - 1} item(ns) iguais a este, cada um com número e QR Code próprios, formando um lote.</p>}
               </div>
             )}
             <div><Label>Categoria</Label><Select value={form.category_id} onValueChange={(v) => set('category_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Local</Label><Select value={form.location_id} onValueChange={(v) => set('location_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Unidade</Label><Select value={form.location_id} onValueChange={(v) => set('location_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Local</Label><Input value={form.location_detail} onChange={(e) => set('location_detail', e.target.value)} placeholder="Ex: Salão, armário 2" /></div>
             <div className="md:col-span-2"><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} /></div>
             <div><Label>Marca</Label><Input value={form.brand} onChange={(e) => set('brand', e.target.value)} /></div>
             <div><Label>Modelo</Label><Input value={form.model} onChange={(e) => set('model', e.target.value)} /></div>

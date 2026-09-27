@@ -70,7 +70,7 @@ export default function Dashboard() {
   // distribution by location
   const locDist = {};
   assets.forEach((a) => {
-    const l = a.location_name || 'Sem local';
+    const l = a.location_name || 'Sem unidade';
     locDist[l] = (locDist[l] || 0) + 1;
   });
   const locEntries = Object.entries(locDist).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -116,7 +116,7 @@ export default function Dashboard() {
           )}
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><MapPin className="w-4 h-4" /> Distribuição por local</h3>
+          <h3 className="font-semibold mb-4 flex items-center gap-2"><MapPin className="w-4 h-4" /> Distribuição por unidade</h3>
           {locEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem dados</p>
           ) : (

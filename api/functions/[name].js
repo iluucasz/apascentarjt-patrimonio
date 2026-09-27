@@ -16,7 +16,7 @@ async function createAsset(req, res, user, scope) {
 
   const payload = req.body || {};
   if (scope.restrictedIds && !scope.restrictedIds.includes(payload.location_id)) {
-    return sendError(res, 403, 'Você não tem acesso a este local');
+    return sendError(res, 403, 'Você não tem acesso a esta unidade');
   }
   const pool = getPool();
   const client = await pool.connect();
@@ -36,8 +36,8 @@ async function createAsset(req, res, user, scope) {
       `insert into assets (
         asset_number, name, description, category_id, category_name, brand, model,
         serial_number, location_id, location_name, responsible_person, acquisition_date,
-        acquisition_value, supplier, invoice_number, status, condition, notes, photo_url
-      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+        acquisition_value, supplier, invoice_number, status, condition, notes, photo_url, location_detail
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       returning *`,
       [
         asset_number,
@@ -59,6 +59,7 @@ async function createAsset(req, res, user, scope) {
         payload.condition || 'good',
         payload.notes || '',
         payload.photo_url || '',
+        payload.location_detail || '',
       ]
     );
     const asset = assetRows[0];
@@ -102,11 +103,11 @@ async function createAssetBatch(req, res, user, scope) {
 
   if (!payload.name) return sendError(res, 400, 'Informe o nome do patrimônio');
   if (scope.restrictedIds && !scope.restrictedIds.includes(payload.location_id)) {
-    return sendError(res, 403, 'Você não tem acesso a este local');
+    return sendError(res, 403, 'Você não tem acesso a esta unidade');
   }
   if (total < 1) return sendError(res, 400, 'Informe ao menos uma variante com quantidade');
   if (total > MAX_BATCH_QUANTITY) {
-    return sendError(res, 400, `Máximo de ${MAX_BATCH_QUANTITY} unidades por lote`);
+    return sendError(res, 400, `Máximo de ${MAX_BATCH_QUANTITY} itens por lote`);
   }
 
   const pool = getPool();
@@ -140,12 +141,13 @@ async function createAssetBatch(req, res, user, scope) {
       payload.condition || 'good',
       payload.notes || '',
       payload.photo_url || '',
+      payload.location_detail || '',
     ];
     const SHARED_COLS = [
       'description', 'category_id', 'category_name', 'brand', 'model',
       'location_id', 'location_name', 'responsible_person', 'acquisition_date',
       'acquisition_value', 'supplier', 'invoice_number', 'status', 'condition',
-      'notes', 'photo_url',
+      'notes', 'photo_url', 'location_detail',
     ];
 
     const cols = ['asset_number', 'name', ...SHARED_COLS, 'variant', 'batch_id'];
@@ -243,7 +245,7 @@ const CLONE_COLS = [
   'name', 'description', 'category_id', 'category_name', 'brand', 'model',
   'location_id', 'location_name', 'responsible_person', 'acquisition_date',
   'acquisition_value', 'supplier', 'invoice_number', 'status', 'condition',
-  'notes', 'photo_url',
+  'notes', 'photo_url', 'location_detail',
 ];
 
 // `overrides` troca o valor copiado de algumas colunas (ex.: local/status das
@@ -301,8 +303,9 @@ async function moveUnits(client, ids, move) {
     ]
   );
   const { rowCount } = await client.query(
-    'update assets set location_id = $2, location_name = $3, updated_date = now() where id = any($1::uuid[])',
-    [ids, move.to_location_id, move.to_location_name]
+    `update assets set location_id = $2, location_name = $3, location_detail = $4, updated_date = now()
+     where id = any($1::uuid[])`,
+    [ids, move.to_location_id, move.to_location_name, move.location_detail || '']
   );
   return rowCount;
 }
@@ -357,7 +360,7 @@ async function updateAssetBatch(req, res, user, scope) {
     }
     if (await assetsOutsideScope(client, units.map((u) => u.id), scope.restrictedIds)) {
       await client.query('rollback');
-      return sendError(res, 403, 'Este lote tem unidades em locais que você não acessa');
+      return sendError(res, 403, 'Este lote tem itens em unidades que você não acessa');
     }
 
     const unitsByVariant = new Map();
@@ -369,15 +372,15 @@ async function updateAssetBatch(req, res, user, scope) {
     const finalTotal = units.length + targets.reduce((sum, t) => sum + t.quantity - currentCount(t.variant), 0);
     if (finalTotal < 1) {
       await client.query('rollback');
-      return sendError(res, 400, 'O lote precisa ter ao menos uma unidade. Para apagar tudo, use "Excluir lote inteiro".');
+      return sendError(res, 400, 'O lote precisa ter ao menos um item. Para apagar tudo, use "Excluir lote inteiro".');
     }
     if (finalTotal > MAX_BATCH_QUANTITY) {
       await client.query('rollback');
-      return sendError(res, 400, `Máximo de ${MAX_BATCH_QUANTITY} unidades por lote`);
+      return sendError(res, 400, `Máximo de ${MAX_BATCH_QUANTITY} itens por lote`);
     }
     if (user.role !== 'admin' && targets.some((t) => t.quantity < currentCount(t.variant))) {
       await client.query('rollback');
-      return sendError(res, 403, 'Apenas administradores podem reduzir a quantidade (as unidades removidas são excluídas)');
+      return sendError(res, 403, 'Apenas administradores podem reduzir a quantidade (os itens removidos são excluídos)');
     }
 
     const sharedCols = [
@@ -401,6 +404,7 @@ async function updateAssetBatch(req, res, user, scope) {
     ];
     if (status) { sharedCols.push('status'); sharedValues.push(status); }
     if (condition) { sharedCols.push('condition'); sharedValues.push(condition); }
+    if (typeof payload.location_detail === 'string') { sharedCols.push('location_detail'); sharedValues.push(payload.location_detail); }
     const setClause = sharedCols.map((col, i) => `${col} = $${i + 2}`).join(', ');
     // serial_number fica de fora de propósito: é sempre individual de cada
     // unidade e continua editável em /patrimonios/:id/editar.
@@ -424,7 +428,7 @@ async function updateAssetBatch(req, res, user, scope) {
       const locationName = await findLocationName(client, locationId);
       if (locationName === null) {
         await client.query('rollback');
-        return sendError(res, 404, 'Local não encontrado');
+        return sendError(res, 404, 'Unidade não encontrada');
       }
       location = { id: locationId, name: locationName };
       moved = await moveUnits(
@@ -434,7 +438,8 @@ async function updateAssetBatch(req, res, user, scope) {
           to_location_id: locationId,
           to_location_name: locationName,
           movement_type: 'transfer',
-          notes: 'Local alterado na edição do lote',
+          notes: 'Unidade alterada na edição do lote',
+          location_detail: typeof payload.location_detail === 'string' ? payload.location_detail : '',
           moved_by_name: user.full_name || user.email,
         }
       );
@@ -517,7 +522,7 @@ async function expandAsset(req, res, user, scope) {
   if (!payload.asset_id) return sendError(res, 400, 'Informe o patrimônio');
   if (quantity < 2) return sendError(res, 400, 'Informe uma quantidade maior que 1');
   if (quantity > MAX_BATCH_QUANTITY) {
-    return sendError(res, 400, `Máximo de ${MAX_BATCH_QUANTITY} unidades por lote`);
+    return sendError(res, 400, `Máximo de ${MAX_BATCH_QUANTITY} itens por lote`);
   }
 
   const pool = getPool();
@@ -533,7 +538,7 @@ async function expandAsset(req, res, user, scope) {
     }
     if (scope.restrictedIds && !scope.restrictedIds.includes(asset.location_id)) {
       await client.query('rollback');
-      return sendError(res, 403, 'Você não tem acesso a este local');
+      return sendError(res, 403, 'Você não tem acesso a esta unidade');
     }
     if (asset.batch_id) {
       await client.query('rollback');
@@ -580,7 +585,7 @@ async function moveAssets(req, res, user, scope) {
   const payload = req.body || {};
   const ids = Array.isArray(payload.ids) ? payload.ids.filter(Boolean) : [];
   if (ids.length === 0) return sendError(res, 400, 'Selecione ao menos um patrimônio');
-  if (!payload.to_location_id) return sendError(res, 400, 'Selecione o novo local');
+  if (!payload.to_location_id) return sendError(res, 400, 'Selecione a nova unidade');
   const movement_type = MOVEMENT_TYPES.includes(payload.movement_type) ? payload.movement_type : 'transfer';
 
   const pool = getPool();
@@ -590,12 +595,12 @@ async function moveAssets(req, res, user, scope) {
 
     if (await assetsOutsideScope(client, ids, scope.restrictedIds)) {
       await client.query('rollback');
-      return sendError(res, 403, 'Você não tem acesso a este local');
+      return sendError(res, 403, 'Você não tem acesso a esta unidade');
     }
     const locationName = await findLocationName(client, payload.to_location_id);
     if (locationName === null) {
       await client.query('rollback');
-      return sendError(res, 404, 'Local não encontrado');
+      return sendError(res, 404, 'Unidade não encontrada');
     }
     const count = await moveUnits(client, ids, {
       to_location_id: payload.to_location_id,
@@ -603,6 +608,7 @@ async function moveAssets(req, res, user, scope) {
       responsible_person: payload.responsible_person,
       movement_type,
       notes: payload.notes,
+      location_detail: payload.location_detail,
       moved_by_name: user.full_name || user.email,
     });
 
@@ -649,7 +655,7 @@ async function updateAssetsState(req, res, user, scope) {
     await client.query('begin');
     if (await assetsOutsideScope(client, ids, scope.restrictedIds)) {
       await client.query('rollback');
-      return sendError(res, 403, 'Você não tem acesso a este local');
+      return sendError(res, 403, 'Você não tem acesso a esta unidade');
     }
 
     const { rowCount } = await client.query(

@@ -23,7 +23,7 @@ const NAV = [
   { to: '/inventarios', label: 'Inventários', icon: ClipboardList },
   { to: '/movimentacoes', label: 'Movimentações', icon: ArrowLeftRight },
   { to: '/manutencoes', label: 'Manutenções', icon: Wrench },
-  { to: '/locais', label: 'Locais', icon: MapPin },
+  { to: '/unidades', label: 'Unidades', icon: MapPin },
   { to: '/categorias', label: 'Categorias', icon: Tags },
   { to: '/etiquetas', label: 'Etiquetas', icon: QrCode },
   { to: '/usuarios', label: 'Usuários', icon: Users, adminOnly: true },

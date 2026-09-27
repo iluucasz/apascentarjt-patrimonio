@@ -113,7 +113,7 @@ const ASSET_CHILD_TABLES = {
 export async function checkEntityWrite(pool, entity, { id, data = {} }, allowedIds) {
   if (!allowedIds) return null;
   const inScope = (locationId) => !!locationId && allowedIds.includes(locationId);
-  const denied = 'Você não tem acesso a este local';
+  const denied = 'Você não tem acesso a esta unidade';
 
   if (entity === 'Asset') {
     if (id) return inScope(await assetLocation(pool, id)) ? null : denied;

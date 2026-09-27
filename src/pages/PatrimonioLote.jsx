@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 const KEEP = '__keep';
 const ALL = '__all';
 const EMPTY_MOVE = {
-  to_location_id: '', responsible_person: '', movement_type: 'transfer', notes: '',
+  to_location_id: '', location_detail: '', responsible_person: '', movement_type: 'transfer', notes: '',
   from_location_id: ALL, variant: ALL, quantity: '',
 };
 
@@ -31,7 +31,7 @@ const EMPTY_MOVE = {
 // senão o primeiro e o último.
 function describeNumbers(numbers) {
   if (numbers.length <= 6) return numbers.join(', ');
-  return `${numbers[0]} … ${numbers[numbers.length - 1]} (${numbers.length} unidades)`;
+  return `${numbers[0]} … ${numbers[numbers.length - 1]} (${numbers.length} itens)`;
 }
 const EMPTY_STATE = { status: KEEP, condition: KEEP };
 
@@ -87,7 +87,7 @@ export default function PatrimonioLote() {
     for (const u of units) {
       if (u.status === 'disposed') continue;
       const key = u.location_id || '';
-      if (!map.has(key)) map.set(key, { id: key, name: u.location_name || 'Sem local', count: 0 });
+      if (!map.has(key)) map.set(key, { id: key, name: u.location_name || 'Sem unidade', count: 0 });
       map.get(key).count += 1;
     }
     return [...map.values()].sort((a, b) => b.count - a.count);
@@ -114,7 +114,7 @@ export default function PatrimonioLote() {
     const term = q.trim().toLowerCase();
     if (!term) return units;
     return units.filter((u) => [
-      u.asset_number, u.variant, u.location_name, STATUS_LABELS[u.status], CONDITION_LABELS[u.condition],
+      u.asset_number, u.variant, u.location_name, u.location_detail, STATUS_LABELS[u.status], CONDITION_LABELS[u.condition],
     ].filter(Boolean).join(' ').toLowerCase().includes(term));
   }, [units, q]);
 
@@ -161,22 +161,22 @@ export default function PatrimonioLote() {
   };
 
   const handleMove = async () => {
-    if (!moveForm.to_location_id) { toast.error('Selecione o novo local'); return; }
+    if (!moveForm.to_location_id) { toast.error('Selecione a nova unidade'); return; }
     let ids = [...selected];
     if (moveScope === 'quantity') {
-      if (moveQuantity < 1) { toast.error('Informe quantas unidades movimentar'); return; }
+      if (moveQuantity < 1) { toast.error('Informe quantos itens movimentar'); return; }
       if (moveQuantity > movable.length) {
-        toast.error(`Só há ${movable.length} unidade${movable.length === 1 ? '' : 's'} disponíve${movable.length === 1 ? 'l' : 'is'} com esses filtros`);
+        toast.error(`Só há ${movable.length} ite${movable.length === 1 ? 'm' : 'ns'} disponíve${movable.length === 1 ? 'l' : 'is'} com esses filtros`);
         return;
       }
       ids = toMove.map((u) => u.id);
     }
-    const { to_location_id, responsible_person, movement_type, notes } = moveForm;
+    const { to_location_id, location_detail, responsible_person, movement_type, notes } = moveForm;
     setWorking(true);
     try {
-      const res = await db.functions.invoke('moveAssets', { batch_id: batchId, ids, to_location_id, responsible_person, movement_type, notes });
+      const res = await db.functions.invoke('moveAssets', { batch_id: batchId, ids, to_location_id, location_detail, responsible_person, movement_type, notes });
       const count = res.data.count;
-      const destination = locations.find((l) => l.id === to_location_id)?.name || 'o novo local';
+      const destination = locations.find((l) => l.id === to_location_id)?.name || 'a nova unidade';
       toast.success(`${count} patrimônio${count === 1 ? '' : 's'} movimentado${count === 1 ? '' : 's'} para ${destination}`, {
         action: { label: 'Imprimir etiquetas', onClick: () => navigate(`/etiquetas?ids=${ids.join(',')}`) },
       });
@@ -230,7 +230,7 @@ export default function PatrimonioLote() {
 
   return (
     <Layout>
-      <PageHeader title={first.name} description={`Lote com ${units.length} unidades`}>
+      <PageHeader title={first.name} description={`Lote com ${units.length} itens`}>
         <Button variant="outline" onClick={() => navigate('/patrimonios')}><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Button>
         {canEditAsset(user) && (
           <Button variant="outline" onClick={() => navigate(`/patrimonios/lote/${batchId}/editar`)}><Pencil className="w-4 h-4 mr-2" /> Editar lote</Button>
@@ -246,9 +246,9 @@ export default function PatrimonioLote() {
 
       <div className="rounded-xl border border-border bg-card p-4 mb-4 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
         <div><p className="text-muted-foreground">Categoria</p><p className="font-medium">{first.category_name || '-'}</p></div>
-        <div><p className="text-muted-foreground">Total de unidades</p><p className="font-medium">{units.length}</p></div>
+        <div><p className="text-muted-foreground">Total de itens</p><p className="font-medium">{units.length}</p></div>
         <div className="col-span-2 md:col-span-1">
-          <p className="text-muted-foreground">Local</p>
+          <p className="text-muted-foreground">Unidade</p>
           <p className="font-medium">{byLocation.length === 1 ? byLocation[0][0] : byLocation.map(([label, count]) => `${label} (${count})`).join(', ')}</p>
         </div>
         <div>
@@ -268,7 +268,7 @@ export default function PatrimonioLote() {
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative max-w-sm flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, variante, local, status..." className="pl-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, variante, unidade, status..." className="pl-9" />
         </div>
         {canSelect && (
           <>
@@ -308,7 +308,7 @@ export default function PatrimonioLote() {
               )}
               <th className="text-left font-medium px-4 py-3">Número</th>
               <th className="text-left font-medium px-4 py-3">Variante</th>
-              <th className="text-left font-medium px-4 py-3">Local</th>
+              <th className="text-left font-medium px-4 py-3">Unidade</th>
               <th className="text-left font-medium px-4 py-3">Status</th>
               <th className="text-left font-medium px-4 py-3">Condição</th>
               <th className="text-left font-medium px-4 py-3">Atualizado</th>
@@ -323,14 +323,14 @@ export default function PatrimonioLote() {
                 )}
                 <td className="px-4 py-3 font-mono text-xs">{u.asset_number}</td>
                 <td className="px-4 py-3">{u.variant || '-'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{u.location_name || '-'}</td>
+                <td className="px-4 py-3 text-muted-foreground">{u.location_name || '-'}{u.location_detail && <span className="block text-xs">{u.location_detail}</span>}</td>
                 <td className="px-4 py-3"><AssetStatusBadge status={u.status} /></td>
                 <td className="px-4 py-3"><AssetConditionBadge condition={u.condition} /></td>
                 <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(u.updated_date)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
                     <Link to={`/p/${u.asset_number}`} className="p-1.5 rounded hover:bg-accent" title="Visualizar"><Eye className="w-4 h-4" /></Link>
-                    {canEditAsset(user) && <Link to={`/patrimonios/${u.id}/editar`} className="p-1.5 rounded hover:bg-accent" title="Editar unidade"><Pencil className="w-4 h-4" /></Link>}
+                    {canEditAsset(user) && <Link to={`/patrimonios/${u.id}/editar`} className="p-1.5 rounded hover:bg-accent" title="Editar item"><Pencil className="w-4 h-4" /></Link>}
                   </div>
                 </td>
               </tr>
@@ -366,9 +366,9 @@ export default function PatrimonioLote() {
             <DialogTitle>{moveScope === 'quantity' ? `Movimentar ${first.name}` : `Movimentar ${selected.size} selecionado${selected.size === 1 ? '' : 's'}`}</DialogTitle>
             <DialogDescription>
               {moveScope === 'quantity'
-                ? 'Escolha quantas unidades vão para o novo local. Para mandar outra parte para outro local, é só repetir.'
-                : `${selected.size} unidade${selected.size === 1 ? '' : 's'} de "${first.name}".`}
-              {' '}A movimentação fica registrada no histórico de cada unidade.
+                ? 'Escolha quantos itens vão para a nova unidade. Para mandar outra parte para outra unidade, é só repetir.'
+                : `${selected.size} ite${selected.size === 1 ? 'm' : 'ns'} de "${first.name}".`}
+              {' '}A movimentação fica registrada no histórico de cada item.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -378,7 +378,7 @@ export default function PatrimonioLote() {
                 <Select value={moveForm.from_location_id} onValueChange={(v) => setMoveForm((f) => ({ ...f, from_location_id: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={ALL}>Qualquer local</SelectItem>
+                    <SelectItem value={ALL}>Qualquer unidade</SelectItem>
                     {originOptions.map((o) => <SelectItem key={o.id || 'none'} value={o.id}>{o.name} ({o.count})</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -396,7 +396,7 @@ export default function PatrimonioLote() {
                 </Select>
               </div>
             )}
-            <div><Label>Novo local *</Label><Select value={moveForm.to_location_id} onValueChange={(v) => setMoveForm((f) => ({ ...f, to_location_id: v }))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Nova unidade *</Label><Select value={moveForm.to_location_id} onValueChange={(v) => setMoveForm((f) => ({ ...f, to_location_id: v }))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
             {moveScope === 'quantity' && (
               <div>
                 <Label>Quantidade *</Label>
@@ -407,11 +407,12 @@ export default function PatrimonioLote() {
                 </div>
                 {toMove.length > 0 && moveQuantity <= movable.length && (
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Vão as unidades <span className="font-mono text-foreground">{describeNumbers(toMove.map((u) => u.asset_number))}</span>. Separe as peças com essas etiquetas.
+                    Vão os itens <span className="font-mono text-foreground">{describeNumbers(toMove.map((u) => u.asset_number))}</span>. Separe as peças com essas etiquetas.
                   </p>
                 )}
               </div>
             )}
+            <div><Label>Local na nova unidade</Label><Input value={moveForm.location_detail} onChange={(e) => setMoveForm((f) => ({ ...f, location_detail: e.target.value }))} placeholder="Ex: Salão, armário 2" /></div>
             <div><Label>Responsável</Label><Input value={moveForm.responsible_person} onChange={(e) => setMoveForm((f) => ({ ...f, responsible_person: e.target.value }))} /></div>
             <div><Label>Tipo</Label><Select value={moveForm.movement_type} onValueChange={(v) => setMoveForm((f) => ({ ...f, movement_type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(MOVEMENT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Observação</Label><Textarea value={moveForm.notes} onChange={(e) => setMoveForm((f) => ({ ...f, notes: e.target.value }))} rows={2} /></div>
@@ -428,7 +429,7 @@ export default function PatrimonioLote() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Alterar status/condição</DialogTitle>
-            <DialogDescription>{stateCount} unidade{stateCount === 1 ? '' : 's'} de &quot;{first.name}&quot;.</DialogDescription>
+            <DialogDescription>{stateCount} ite{stateCount === 1 ? 'm' : 'ns'} de &quot;{first.name}&quot;.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -464,8 +465,8 @@ export default function PatrimonioLote() {
         onOpenChange={(v) => { if (!v) setDeleteScope(null); }}
         title={deleteScope === 'all' ? 'Excluir lote inteiro?' : `Excluir ${selected.size} patrimônios?`}
         description={deleteScope === 'all'
-          ? `Isso vai apagar as ${units.length} unidades deste lote ("${first.name}") e todo o histórico delas (movimentações, manutenções, documentos e registros de inventário) para sempre. Essa ação não pode ser desfeita.`
-          : `Isso vai apagar ${selected.size} unidade${selected.size === 1 ? '' : 's'} selecionada${selected.size === 1 ? '' : 's'} e todo o histórico delas para sempre. Essa ação não pode ser desfeita.`}
+          ? `Isso vai apagar os ${units.length} itens deste lote ("${first.name}") e todo o histórico deles (movimentações, manutenções, documentos e registros de inventário) para sempre. Essa ação não pode ser desfeita.`
+          : `Isso vai apagar ${selected.size} ite${selected.size === 1 ? 'm' : 'ns'} selecionado${selected.size === 1 ? '' : 's'} e todo o histórico deles para sempre. Essa ação não pode ser desfeita.`}
         confirmLabel="Excluir permanentemente"
         loading={deleting}
         onConfirm={handleDelete}
