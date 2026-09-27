@@ -5,11 +5,18 @@
 //   admin; null/vazio = vê tudo. É regra de acesso: aplicada em toda leitura e
 //   em toda escrita.
 // - filial escolhida no seletor da barra lateral (header X-Filial): só um filtro
-//   de visualização das listagens. Escolher a filial principal (locations.is_main)
-//   ou nenhuma = ver tudo.
+//   de visualização das listagens. Escolher a matriz principal ou nenhuma = ver
+//   tudo.
 //
-// Um local inclui todos os seus sublocais (parent_location_id), em qualquer
-// profundidade.
+// Hierarquia: local sem "local pai" = matriz; filho direto da matriz = filial.
+// A matriz principal é a marcada com is_main ou, se só existe uma matriz, ela
+// mesma. Um local inclui todos os seus sublocais, em qualquer profundidade.
+
+export function mainLocationId(locations) {
+  const roots = locations.filter((l) => !l.parent_location_id);
+  const main = roots.find((l) => l.is_main) || (roots.length === 1 ? roots[0] : null);
+  return main ? main.id : null;
+}
 
 function subtree(locations, rootIds) {
   const children = new Map();
@@ -50,7 +57,7 @@ export async function resolveScope(pool, user, req) {
 
   let viewIds = restrictedIds;
   const viewLocation = viewId && locations.find((l) => l.id === viewId);
-  if (viewLocation && !viewLocation.is_main) {
+  if (viewLocation && viewLocation.id !== mainLocationId(locations)) {
     const filialIds = subtree(locations, [viewLocation.id]);
     viewIds = restrictedIds ? filialIds.filter((id) => restrictedIds.includes(id)) : filialIds;
   }

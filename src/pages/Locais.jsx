@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
 import { MapPin, Plus, Pencil, Power, Trash2, Star } from 'lucide-react';
-import { locationTree, resolveBranding } from '@/lib/locations';
+import { locationKind, locationTree, mainLocationOf, resolveBranding } from '@/lib/locations';
 import BrandMark from '@/components/BrandMark';
 import LocationBrandingFields from '@/components/LocationBrandingFields';
 
@@ -48,6 +48,9 @@ export default function Locais() {
 
   const openNew = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true); };
   const tree = locationTree(scopeLocations);
+  const mainId = mainLocationOf(locations)?.id;
+  // Só faz sentido escolher a principal quando há mais de uma matriz.
+  const multipleRoots = locations.filter((l) => !l.parent_location_id).length > 1;
   const openEdit = (l) => {
     setEditing(l);
     setForm({
@@ -59,11 +62,14 @@ export default function Locais() {
   };
 
   // O que o local herdaria sem logo/cor própria: do local pai escolhido no
-  // formulário, senão da filial principal, senão das configurações.
+  // formulário, senão da matriz principal, senão das configurações.
   const otherLocations = locations.filter((l) => l.id !== editing?.id);
   const inheritedBranding = resolveBranding(otherLocations, form.parent_location_id, settings);
-  const mainLocation = otherLocations.find((l) => l.is_main);
-  const inheritLabel = form.parent_location_id ? 'do local pai' : mainLocation ? `da principal (${mainLocation.name})` : 'das configurações';
+  const mainLocation = mainLocationOf(otherLocations);
+  const parentLocation = otherLocations.find((l) => l.id === form.parent_location_id);
+  const inheritLabel = parentLocation
+    ? `do local pai (${parentLocation.name})`
+    : mainLocation ? `da matriz principal (${mainLocation.name})` : 'das configurações';
 
   const save = async () => {
     if (!form.name) { toast.error('Informe o nome'); return; }
@@ -92,7 +98,7 @@ export default function Locais() {
     catch (e) { toast.error('Erro'); }
   };
 
-  // A filial principal é a visão geral do seletor (mostra tudo). Só pode haver uma.
+  // A matriz principal é a visão geral do seletor (mostra tudo). Só pode haver uma.
   const toggleMain = async (l) => {
     try {
       if (l.is_main) {
@@ -104,8 +110,8 @@ export default function Locais() {
         await db.entities.Location.update(l.id, { is_main: true });
       }
       await refresh();
-      toast.success(l.is_main ? 'Filial principal removida' : `${l.name} agora é a filial principal`);
-    } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao definir filial principal'); }
+      toast.success(l.is_main ? 'Matriz principal removida' : `${l.name} agora é a matriz principal`);
+    } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao definir matriz principal'); }
   };
 
   const confirmDelete = async () => {
@@ -125,7 +131,7 @@ export default function Locais() {
 
   return (
     <Layout>
-      <PageHeader title="Locais" description="Locais sem local pai são filiais e aparecem no seletor da barra lateral; a filial principal mostra o patrimônio de todas">
+      <PageHeader title="Locais" description="Local sem local pai é a matriz; os locais dentro dela são as filiais e aparecem no seletor da barra lateral. Escolher a matriz mostra o patrimônio de todas.">
         <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Novo local</Button>
       </PageHeader>
       {scopeLocations.length === 0 ? (
@@ -139,9 +145,9 @@ export default function Locais() {
                   <BrandMark {...resolveBranding(locations, l.id, settings)} className="w-9 h-9" />
                   <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="font-semibold truncate">{l.name}</p>
-                    {l.is_main && <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/10 text-primary">Principal</span>}
-                    {!l.is_main && !l.parent_location_id && <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Filial</span>}
+                    <p className="font-semibold break-words">{l.name}</p>
+                    {locationKind(locations, l) === 'matriz' && <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/10 text-primary">{multipleRoots && l.id === mainId ? 'Matriz principal' : 'Matriz'}</span>}
+                    {locationKind(locations, l) === 'filial' && <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Filial</span>}
                   </div>
                   {l.parent_location_name && <p className="text-xs text-muted-foreground">↳ {l.parent_location_name}</p>}
                   {l.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{l.description}</p>}
@@ -152,8 +158,8 @@ export default function Locais() {
               <div className="flex gap-1 mt-3">
                 <Button size="sm" variant="ghost" onClick={() => openEdit(l)} title="Editar"><Pencil className="w-4 h-4" /></Button>
                 <Button size="sm" variant="ghost" onClick={() => toggleActive(l)} title={l.active ? 'Desativar' : 'Ativar'}><Power className="w-4 h-4" /></Button>
-                {isAdmin && !l.parent_location_id && (
-                  <Button size="sm" variant="ghost" onClick={() => toggleMain(l)} title={l.is_main ? 'Deixar de ser a principal' : 'Tornar filial principal'}>
+                {isAdmin && multipleRoots && !l.parent_location_id && (
+                  <Button size="sm" variant="ghost" onClick={() => toggleMain(l)} title={l.is_main ? 'Deixar de ser a principal' : 'Tornar matriz principal'}>
                     <Star className={`w-4 h-4 ${l.is_main ? 'fill-current text-amber-500' : ''}`} />
                   </Button>
                 )}
@@ -169,7 +175,7 @@ export default function Locais() {
           <DialogHeader><DialogTitle>{editing ? 'Editar local' : 'Novo local'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm(f => ({...f, name: e.target.value}))} /></div>
-            <div><Label>Local pai (opcional)</Label><Select value={form.parent_location_id || NO_PARENT} onValueChange={(v) => setForm(f => ({...f, parent_location_id: v === NO_PARENT ? '' : v}))}><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger><SelectContent><SelectItem value={NO_PARENT}>Nenhum (é uma filial)</SelectItem>{scopeLocations.filter((l) => l.id !== editing?.id).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Local pai (opcional)</Label><Select value={form.parent_location_id || NO_PARENT} onValueChange={(v) => setForm(f => ({...f, parent_location_id: v === NO_PARENT ? '' : v}))}><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger><SelectContent><SelectItem value={NO_PARENT}>Nenhum (é a matriz)</SelectItem>{scopeLocations.filter((l) => l.id !== editing?.id).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => setForm(f => ({...f, description: e.target.value}))} rows={2} /></div>
             <LocationBrandingFields value={form} onChange={setForm} inherited={inheritedBranding} inheritLabel={inheritLabel} onUploadingChange={setUploadingLogo} />
           </div>

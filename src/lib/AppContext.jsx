@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { locationSubtree } from '@/lib/locations';
+import { locationSubtree, mainLocationOf } from '@/lib/locations';
 
 const AppContext = createContext(null);
 
@@ -69,11 +69,12 @@ export function AppProvider({ children }) {
     })();
   }, [refresh]);
 
-  // Filiais: locais sem "local pai". A principal (is_main) é a visão geral.
+  // Seletor: cada matriz (local sem "local pai") seguida das filiais dela (os
+  // filhos diretos). A matriz principal é a visão geral (vê tudo).
   // Usuário restrito (não admin com allowed_location_ids) só enxerga os locais
   // liberados e os sublocais deles — o backend aplica a mesma regra.
   const restrictedIds = user && user.role !== 'admin' && user.allowed_location_ids?.length ? user.allowed_location_ids : null;
-  const mainLocation = locations.find((l) => l.is_main) || null;
+  const mainLocation = mainLocationOf(locations);
 
   const filialOptions = useMemo(() => {
     const byName = (a, b) => a.name.localeCompare(b.name);
@@ -81,12 +82,18 @@ export function AppProvider({ children }) {
       const own = locations.filter((l) => restrictedIds.includes(l.id)).sort(byName).map((l) => ({ id: l.id, name: l.name }));
       return own.length > 1 ? [{ id: '', name: 'Todos os meus locais', overview: true }, ...own] : own;
     }
-    const roots = locations.filter((l) => !l.parent_location_id && l.active !== false && !l.is_main).sort(byName)
-      .map((l) => ({ id: l.id, name: l.name }));
-    const overview = mainLocation
-      ? { id: mainLocation.id, name: mainLocation.name, overview: true, main: true }
-      : { id: '', name: 'Todas as filiais', overview: true };
-    return [overview, ...roots];
+    const active = locations.filter((l) => l.active !== false);
+    const roots = locations.filter((l) => !l.parent_location_id && (l.active !== false || l.id === mainLocation?.id))
+      .sort((a, b) => (a.id === mainLocation?.id ? -1 : b.id === mainLocation?.id ? 1 : byName(a, b)));
+    const options = mainLocation ? [] : [{ id: '', name: 'Visão geral', overview: true }];
+    for (const root of roots) {
+      const isMain = root.id === mainLocation?.id;
+      options.push({ id: root.id, name: root.name, kind: 'matriz', overview: isMain, main: isMain });
+      for (const filial of active.filter((l) => l.parent_location_id === root.id).sort(byName)) {
+        options.push({ id: filial.id, name: filial.name, kind: 'filial' });
+      }
+    }
+    return options;
   }, [locations, restrictedIds, mainLocation]);
 
   const currentFilial = filialOptions.find((o) => o.id === filialId) || filialOptions[0] || null;

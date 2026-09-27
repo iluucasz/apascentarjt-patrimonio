@@ -1,5 +1,5 @@
 import React from 'react';
-import { locationTree } from '@/lib/locations';
+import { locationKind, locationTree } from '@/lib/locations';
 
 // Lista de locais com checkbox, em ordem de árvore. Marcar um local já inclui
 // os sublocais dele (regra aplicada no backend), então os filhos de um local
@@ -42,7 +42,7 @@ export default function LocationPicker({ locations, value, onChange }) {
           >
             <input type="checkbox" checked={inherited || selected.has(l.id)} disabled={inherited} onChange={() => toggle(l.id)} />
             <span className="truncate">{l.name}</span>
-            {!l.parent_location_id && <span className="text-[10px] uppercase tracking-wide text-muted-foreground ml-auto">Filial</span>}
+            {locationKind(locations, l) && <span className="text-[10px] uppercase tracking-wide text-muted-foreground ml-auto">{locationKind(locations, l) === 'matriz' ? 'Matriz' : 'Filial'}</span>}
           </label>
         );
       })}

@@ -60,7 +60,7 @@ export default function Layout({ children }) {
   const canSwitchFilial = filialOptions.length > 1;
   const filialLabel = !currentFilial || (!canSwitchFilial && currentFilial.overview)
     ? 'Patrimônio'
-    : currentFilial.main ? `${currentFilial.name} · visão geral` : currentFilial.name;
+    : currentFilial.main ? 'Matriz · visão geral' : currentFilial.name;
   const Brand = (
     <>
       <BrandMark logoUrl={branding.logoUrl} bgColor={branding.bgColor} />
@@ -81,14 +81,14 @@ export default function Layout({ children }) {
               <ChevronsUpDown className="w-4 h-4 text-muted-foreground shrink-0 ml-auto" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-60">
+          <DropdownMenuContent align="start" className="w-80 max-w-[calc(100vw-1rem)]">
             <DropdownMenuLabel>Ver patrimônio de</DropdownMenuLabel>
             {filialOptions.map((o) => (
-              <DropdownMenuItem key={o.id || 'all'} onSelect={() => { setFilial(o.id); setMobileOpen(false); }} className="gap-2">
+              <DropdownMenuItem key={o.id || 'all'} onSelect={() => { setFilial(o.id); setMobileOpen(false); }} className={cn('gap-2', o.kind === 'filial' && 'pl-6')}>
                 <Check className={cn('w-4 h-4 shrink-0', currentFilial?.id === o.id ? 'opacity-100' : 'opacity-0')} />
                 <BrandMark {...brandingOf(o.id)} className="w-6 h-6 rounded-md" iconClassName="w-3.5 h-3.5" />
                 <span className="truncate flex-1">{o.name}</span>
-                {o.main && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Principal</span>}
+                {o.kind === 'matriz' && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Matriz</span>}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

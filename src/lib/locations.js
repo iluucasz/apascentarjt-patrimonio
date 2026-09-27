@@ -1,5 +1,20 @@
 // Árvore de locais (parent_location_id). Mesma regra do backend
-// (api/_lib/scope.js): um local inclui todos os sublocais, em qualquer nível.
+// (api/_lib/scope.js): local sem pai = matriz, filho direto da matriz = filial,
+// e um local inclui todos os sublocais, em qualquer nível.
+
+// Matriz principal (a visão geral do seletor): a matriz marcada com is_main ou,
+// se só existe uma matriz, ela mesma.
+export function mainLocationOf(locations) {
+  const roots = locations.filter((l) => !l.parent_location_id);
+  return roots.find((l) => l.is_main) || (roots.length === 1 ? roots[0] : null);
+}
+
+// 'matriz' | 'filial' | null (sublocal/sala)
+export function locationKind(locations, location) {
+  if (!location.parent_location_id) return 'matriz';
+  const parent = locations.find((l) => l.id === location.parent_location_id);
+  return parent && !parent.parent_location_id ? 'filial' : null;
+}
 
 export function locationSubtree(locations, rootIds) {
   const children = new Map();
@@ -46,7 +61,7 @@ export function locationTree(locations) {
 }
 
 // Logo e cor de fundo de um local: o primeiro valor preenchido subindo pela
-// árvore (o próprio local, o pai, o avô...), depois a filial principal e por
+// árvore (o próprio local, o pai, o avô...), depois a matriz principal e por
 // fim as configurações do sistema. Logo e cor herdam cada um separadamente.
 // locationId vazio = visão geral (principal / configurações).
 export function resolveBranding(locations, locationId, settings) {
@@ -59,7 +74,7 @@ export function resolveBranding(locations, locationId, settings) {
     chain.push(current);
     current = current.parent_location_id ? byId.get(current.parent_location_id) : null;
   }
-  const main = locations.find((l) => l.is_main);
+  const main = mainLocationOf(locations);
   if (main && !seen.has(main.id)) chain.push(main);
   const pick = (key, fallback) => chain.find((l) => l[key])?.[key] || fallback || '';
   return {
