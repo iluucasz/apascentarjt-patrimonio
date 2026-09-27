@@ -9,13 +9,13 @@ import PageHeader from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, RefreshCw, Loader2, Play, CheckCheck, Download } from 'lucide-react';
+import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, Loader2, Play, CheckCheck, Download } from 'lucide-react';
 import { formatDateTime, INV_ITEM_LABELS, INV_ITEM_STYLES } from '@/lib/format';
 
 export default function InventarioDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, locations } = useApp();
+  const { user } = useApp();
   const [inventory, setInventory] = useState(null);
   const [items, setItems] = useState([]);
   const [scanning, setScanning] = useState(false);
@@ -23,9 +23,15 @@ export default function InventarioDetail() {
   const [manual, setManual] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [working, setWorking] = useState(false);
   const html5QrRef = useRef(null);
   const lastCodeRef = useRef('');
   const lastTimeRef = useRef(0);
+  // A câmera fica aberta lendo um código atrás do outro; o callback dela é
+  // criado uma vez só, então lê os itens por ref (sempre a lista atual).
+  const itemsRef = useRef([]);
+  const busyRef = useRef(false);
+  itemsRef.current = items;
 
   const load = async () => {
     try {
@@ -46,28 +52,16 @@ export default function InventarioDetail() {
     return { expected, found, misplaced, pending, notFound };
   };
 
+  // O backend tira a "foto" dos patrimônios esperados da unidade (e das salas
+  // dela, sem as filiais, que têm inventário próprio) numa única operação.
   const startInventory = async () => {
+    setWorking(true);
     try {
-      // snapshot of assets
-      let assets;
-      if (inventory.all_locations) assets = await db.entities.Asset.list('-asset_number');
-      else assets = await db.entities.Asset.filter({ location_id: inventory.location_id }, '-asset_number');
-      // exclude disposed
-      assets = assets.filter((a) => a.status !== 'disposed');
-      if (assets.length === 0) { toast.error('Nenhum patrimônio nesta unidade'); return; }
-      await db.entities.InventoryItem.bulkCreate(assets.map((a) => ({
-        inventory_id: id,
-        asset_id: a.id,
-        asset_number: a.asset_number,
-        asset_name: a.name,
-        expected_location_id: a.location_id || '',
-        expected_location_name: a.location_name || '',
-        status: 'pending'
-      })));
-      await db.entities.Inventory.update(id, { status: 'in_progress', started_at: new Date().toISOString() });
+      const res = await db.functions.invoke('startInventory', { inventory_id: id });
       await load();
-      toast.success('Inventário iniciado');
-    } catch (e) { toast.error('Erro ao iniciar'); }
+      toast.success(`Inventário iniciado com ${res.data.count} patrimônio${res.data.count === 1 ? '' : 's'}`);
+    } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao iniciar'); }
+    finally { setWorking(false); }
   };
 
   const extractCode = (text) => {
@@ -84,6 +78,8 @@ export default function InventarioDetail() {
     if (!code) return;
     const now = Date.now();
     if (code === lastCodeRef.current && now - lastTimeRef.current < 3000) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     lastCodeRef.current = code;
     lastTimeRef.current = now;
     setLoading(true);
@@ -92,26 +88,23 @@ export default function InventarioDetail() {
       if (assetList.length === 0) {
         setFeedback({ type: 'not_found', code });
         try { navigator.vibrate && navigator.vibrate([100,50,100]); } catch(e){}
-        setLoading(false);
         return;
       }
       const asset = assetList[0];
-      const item = items.find((i) => i.asset_id === asset.id);
+      const item = itemsRef.current.find((i) => i.asset_id === asset.id);
       if (!item) {
         // asset exists but not expected in this inventory
-        setFeedback({ type: 'misplaced', code, asset, message: 'Patrimônio encontrado em outra unidade' });
-        try { navigator.vibrate && navigator.vibrate(100); } catch(e){}
-        setLoading(false);
+        setFeedback({ type: 'misplaced', code, asset, message: 'Este patrimônio não é desta unidade' });
+        try { navigator.vibrate && navigator.vibrate([100,50,100]); } catch(e){}
         return;
       }
       if (item.status === 'found' || item.status === 'misplaced') {
         setFeedback({ type: 'already', code, asset });
-        setLoading(false);
         return;
       }
       // mark found
       const newStatus = asset.location_id === item.expected_location_id ? 'found' : 'misplaced';
-      await db.entities.InventoryItem.update(item.id, {
+      const updated = await db.entities.InventoryItem.update(item.id, {
         status: newStatus,
         scanned_at: new Date().toISOString(),
         scanned_by_name: user?.full_name || user?.email,
@@ -120,15 +113,17 @@ export default function InventarioDetail() {
       });
       setFeedback({ type: newStatus === 'found' ? 'found' : 'misplaced', code, asset, item });
       try { navigator.vibrate && navigator.vibrate(100); } catch(e){}
-      await load();
+      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
     } catch (e) {
       setFeedback({ type: 'error', code });
     } finally {
+      busyRef.current = false;
       setLoading(false);
     }
-  }, [items, user]);
+  }, [user]);
 
   const startScan = async () => {
+    if (html5QrRef.current) return; // câmera já aberta
     setFeedback(null);
     setScanning(true);
     setManual(false);
@@ -139,7 +134,8 @@ export default function InventarioDetail() {
         html5QrRef.current = qr;
         await qr.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 150 } }, (decoded) => handleScan(decoded), () => {});
       } catch (e) {
-        toast.error('Câmera indisponível. Use HTTPS.');
+        html5QrRef.current = null;
+        toast.error('Não foi possível abrir a câmera. Verifique a permissão ou use "Digitar código".');
         setScanning(false);
       }
     }, 100);
@@ -159,16 +155,16 @@ export default function InventarioDetail() {
   };
 
   const finishInventory = async () => {
+    setWorking(true);
     try {
-      // mark remaining pending as not_found
-      const pending = items.filter((i) => i.status === 'pending');
-      for (const it of pending) {
-        await db.entities.InventoryItem.update(it.id, { status: 'not_found' });
-      }
-      await db.entities.Inventory.update(id, { status: 'completed', finished_at: new Date().toISOString(), summary: stats() });
+      await stopScan();
+      await db.functions.invoke('finishInventory', { inventory_id: id });
+      setManual(false);
+      setFeedback(null);
       await load();
       toast.success('Inventário finalizado');
-    } catch (e) { toast.error('Erro ao finalizar'); }
+    } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao finalizar'); }
+    finally { setWorking(false); }
   };
 
   const exportCsv = () => {
@@ -192,8 +188,8 @@ export default function InventarioDetail() {
 
       {inventory.status === 'draft' && (
         <div className="rounded-xl border border-border bg-card p-6 text-center">
-          <p className="text-muted-foreground">O inventário está pronto para iniciar. Um snapshot dos patrimônios será gerado.</p>
-          <Button className="mt-4" onClick={startInventory}><Play className="w-4 h-4 mr-2" /> Iniciar inventário</Button>
+          <p className="text-muted-foreground">O inventário está pronto para iniciar. Será gerada a lista dos patrimônios esperados nesta unidade (e nas salas dela; as filiais têm inventário próprio).</p>
+          <Button className="mt-4" onClick={startInventory} disabled={working}>{working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />} Iniciar inventário</Button>
         </div>
       )}
 
@@ -206,7 +202,7 @@ export default function InventarioDetail() {
             <Stat label="Unidade incorreta" value={s.misplaced} color="text-amber-600" />
           </div>
 
-          {inventory.status === 'in_progress' && !scanning && !feedback && !manual && (
+          {inventory.status === 'in_progress' && !scanning && !manual && (
             <div className="max-w-md mx-auto text-center py-6">
               <button onClick={startScan} className="w-full py-8 rounded-2xl bg-primary text-primary-foreground font-semibold text-lg flex flex-col items-center gap-3 active:scale-[0.98] transition-transform">
                 <ScanLine className="w-10 h-10" /> Escanear patrimônio
@@ -218,28 +214,29 @@ export default function InventarioDetail() {
           {scanning && (
             <div className="max-w-md mx-auto">
               <div id="inv-qr-reader" className="w-full rounded-xl overflow-hidden bg-black aspect-[3/4]" />
-              <Button variant="outline" className="mt-3 w-full" onClick={stopScan}><XCircle className="w-4 h-4 mr-2" /> Parar</Button>
+              <p className="text-xs text-muted-foreground text-center mt-2">Aponte para as etiquetas uma atrás da outra; a câmera continua aberta.</p>
+              <Button variant="outline" className="mt-3 w-full" onClick={stopScan}><XCircle className="w-4 h-4 mr-2" /> Parar câmera</Button>
             </div>
           )}
 
-          {manual && !scanning && !feedback && (
-            <form onSubmit={handleManual} className="max-w-md mx-auto space-y-3">
+          {manual && !scanning && inventory.status === 'in_progress' && (
+            <form onSubmit={handleManual} className="max-w-md mx-auto space-y-3 mb-4">
               <Input value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="Ex: PAT-000127" autoFocus />
-              <div className="flex gap-2"><Button type="submit" className="flex-1">Consultar</Button><Button type="button" variant="outline" onClick={() => setManual(false)}>Cancelar</Button></div>
+              <div className="flex gap-2"><Button type="submit" className="flex-1">Conferir</Button><Button type="button" variant="outline" onClick={() => { setManual(false); setFeedback(null); }}>Fechar</Button></div>
             </form>
           )}
 
           {loading && <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>}
 
           {feedback && !loading && (
-            <div className="max-w-md mx-auto mb-4">
+            <div className="max-w-md mx-auto mb-4 text-center">
               {feedback.type === 'found' && (
                 <div className="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-900 rounded-xl p-5">
                   <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
                   <p className="font-semibold mt-2">Patrimônio encontrado</p>
                   <p className="font-mono">{feedback.code}</p>
                   <p className="text-muted-foreground">{feedback.asset?.name}</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => { setFeedback(null); startScan(); }}><RefreshCw className="w-4 h-4 mr-2" /> Escanear outro</Button>
+                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
                 </div>
               )}
               {feedback.type === 'misplaced' && (
@@ -247,9 +244,9 @@ export default function InventarioDetail() {
                   <AlertTriangle className="w-12 h-12 text-amber-600 mx-auto" />
                   <p className="font-semibold mt-2">{feedback.message || 'Unidade incorreta'}</p>
                   <p className="font-mono">{feedback.code}</p>
-                  <p className="text-sm text-muted-foreground">Esperado: {feedback.item?.expected_location_name || '-'}</p>
-                  <p className="text-sm text-muted-foreground">Encontrado: {feedback.asset?.location_name || '-'}</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => { setFeedback(null); startScan(); }}><RefreshCw className="w-4 h-4 mr-2" /> Continuar</Button>
+                  <p className="text-muted-foreground">{feedback.asset?.name}</p>
+                  <p className="text-sm text-muted-foreground">Cadastrado em: {feedback.asset?.location_name || '-'}</p>
+                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
                 </div>
               )}
               {feedback.type === 'already' && (
@@ -257,7 +254,16 @@ export default function InventarioDetail() {
                   <CheckCircle2 className="w-12 h-12 text-blue-600 mx-auto" />
                   <p className="font-semibold mt-2">Esse patrimônio já foi conferido.</p>
                   <p className="font-mono">{feedback.code}</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => { setFeedback(null); startScan(); }}><RefreshCw className="w-4 h-4 mr-2" /> Continuar</Button>
+                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
+                </div>
+              )}
+              {feedback.type === 'error' && (
+                <div className="border-rose-200 bg-rose-50 dark:bg-rose-900/20 dark:border-rose-900 rounded-xl p-5">
+                  <XCircle className="w-12 h-12 text-rose-600 mx-auto" />
+                  <p className="font-semibold mt-2">Não foi possível conferir agora</p>
+                  <p className="font-mono">{feedback.code}</p>
+                  <p className="text-sm text-muted-foreground">Verifique a conexão e tente de novo.</p>
+                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
                 </div>
               )}
               {feedback.type === 'not_found' && (
@@ -265,7 +271,7 @@ export default function InventarioDetail() {
                   <XCircle className="w-12 h-12 text-rose-600 mx-auto" />
                   <p className="font-semibold mt-2">Patrimônio não encontrado</p>
                   <p className="font-mono">{feedback.code}</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => { setFeedback(null); startScan(); }}><RefreshCw className="w-4 h-4 mr-2" /> Tentar novamente</Button>
+                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
                 </div>
               )}
             </div>
@@ -273,7 +279,7 @@ export default function InventarioDetail() {
 
           <div className="flex gap-2 mt-4">
             {inventory.status === 'in_progress' && (
-              <Button variant="outline" onClick={finishInventory}><CheckCheck className="w-4 h-4 mr-2" /> Finalizar inventário</Button>
+              <Button variant="outline" onClick={finishInventory} disabled={working}>{working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCheck className="w-4 h-4 mr-2" />} Finalizar inventário</Button>
             )}
             <Button variant="outline" onClick={exportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
           </div>

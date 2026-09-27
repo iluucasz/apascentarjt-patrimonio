@@ -165,3 +165,16 @@ export async function assetsOutsideScope(client, ids, allowedIds) {
   );
   return rows[0].count;
 }
+
+// Unidades conferidas no inventário de um local: ele e seus sublocais (salas),
+// mas não as filiais que estão dentro dele — cada filial tem o próprio
+// inventário. Ex.: o inventário da matriz confere só o que está na matriz.
+export function inventoryLocationIds(locations, locationId) {
+  const byId = new Map(locations.map((l) => [l.id, l]));
+  if (!byId.has(locationId)) return [];
+  const isFilial = (l) => !!l.parent_location_id && !byId.get(l.parent_location_id)?.parent_location_id;
+  const own = subtree(locations, [locationId]);
+  const nestedFiliais = own.filter((id) => id !== locationId && isFilial(byId.get(id)));
+  const excluded = new Set(subtree(locations, nestedFiliais));
+  return own.filter((id) => !excluded.has(id));
+}

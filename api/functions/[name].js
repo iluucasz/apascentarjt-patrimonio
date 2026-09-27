@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 
 import { getPool } from '../_lib/db.js';
 import { methodNotAllowed, requireUser, sendError, sendJson } from '../_lib/http.js';
-import { assetsOutsideScope, resolveScope } from '../_lib/scope.js';
+import { assetsOutsideScope, inventoryLocationIds, resolveScope } from '../_lib/scope.js';
 
 async function createAsset(req, res, user, scope) {
   if (user.role !== 'admin' && user.role !== 'manager') {
@@ -732,6 +732,124 @@ async function deleteAssetBatch(req, res, user) {
   }
 }
 
+// Inicia um inventário: tira a "foto" dos patrimônios esperados numa única
+// query (antes eram milhares de inserts um a um e a requisição estourava o
+// tempo limite da Vercel).
+async function startInventory(req, res, user, scope) {
+  const payload = req.body || {};
+  if (!payload.inventory_id) return sendError(res, 400, 'Informe o inventário');
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+
+    const { rows } = await client.query('select * from inventories where id = $1 for update', [payload.inventory_id]);
+    const inventory = rows[0];
+    if (!inventory) {
+      await client.query('rollback');
+      return sendError(res, 404, 'Inventário não encontrado');
+    }
+    if (inventory.status !== 'draft') {
+      await client.query('rollback');
+      return sendError(res, 400, 'Este inventário já foi iniciado');
+    }
+    if (scope.restrictedIds && !scope.restrictedIds.includes(inventory.location_id)) {
+      await client.query('rollback');
+      return sendError(res, 403, 'Você não tem acesso a esta unidade');
+    }
+
+    // null = todas as unidades
+    let locationIds = null;
+    if (!inventory.all_locations) {
+      const { rows: locations } = await client.query('select id, parent_location_id from locations');
+      locationIds = inventoryLocationIds(locations, inventory.location_id);
+    }
+
+    const { rowCount } = await client.query(
+      `insert into inventory_items (
+        inventory_id, asset_id, asset_number, asset_name, expected_location_id, expected_location_name, status
+      )
+      select $1, a.id, a.asset_number, a.name, a.location_id, coalesce(nullif(a.location_name, ''), l.name, ''), 'pending'
+      from assets a left join locations l on l.id = a.location_id
+      where a.status <> 'disposed' and ($2::uuid[] is null or a.location_id = any($2::uuid[]))`,
+      [inventory.id, locationIds]
+    );
+    if (rowCount === 0) {
+      await client.query('rollback');
+      return sendError(res, 400, 'Nenhum patrimônio nesta unidade');
+    }
+
+    await client.query(
+      "update inventories set status = 'in_progress', started_at = now(), updated_date = now() where id = $1",
+      [inventory.id]
+    );
+
+    await client.query('commit');
+    sendJson(res, 200, { data: { count: rowCount } });
+  } catch (err) {
+    await client.query('rollback');
+    sendError(res, 500, err.message);
+  } finally {
+    client.release();
+  }
+}
+
+// Finaliza: o que não foi escaneado vira "não encontrado" e o resumo é salvo.
+async function finishInventory(req, res, user, scope) {
+  const payload = req.body || {};
+  if (!payload.inventory_id) return sendError(res, 400, 'Informe o inventário');
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+
+    const { rows } = await client.query('select * from inventories where id = $1 for update', [payload.inventory_id]);
+    const inventory = rows[0];
+    if (!inventory) {
+      await client.query('rollback');
+      return sendError(res, 404, 'Inventário não encontrado');
+    }
+    if (inventory.status !== 'in_progress') {
+      await client.query('rollback');
+      return sendError(res, 400, 'Este inventário não está em andamento');
+    }
+    if (scope.restrictedIds && !scope.restrictedIds.includes(inventory.location_id)) {
+      await client.query('rollback');
+      return sendError(res, 403, 'Você não tem acesso a esta unidade');
+    }
+
+    await client.query(
+      "update inventory_items set status = 'not_found', updated_date = now() where inventory_id = $1 and status = 'pending'",
+      [inventory.id]
+    );
+    const { rows: countRows } = await client.query(
+      `select
+        count(*)::int as expected,
+        count(*) filter (where status = 'found')::int as found,
+        count(*) filter (where status = 'misplaced')::int as misplaced,
+        count(*) filter (where status = 'pending')::int as pending,
+        count(*) filter (where status = 'not_found')::int as "notFound"
+      from inventory_items where inventory_id = $1`,
+      [inventory.id]
+    );
+    const summary = countRows[0];
+    await client.query(
+      "update inventories set status = 'completed', finished_at = now(), summary = $2, updated_date = now() where id = $1",
+      [inventory.id, JSON.stringify(summary)]
+    );
+
+    await client.query('commit');
+    sendJson(res, 200, { data: { summary } });
+  } catch (err) {
+    await client.query('rollback');
+    sendError(res, 500, err.message);
+  } finally {
+    client.release();
+  }
+}
+
 const FUNCTIONS = {
   'create-asset': createAsset,
   'create-asset-batch': createAssetBatch,
@@ -740,6 +858,8 @@ const FUNCTIONS = {
   'expand-asset': expandAsset,
   'move-assets': moveAssets,
   'update-assets-state': updateAssetsState,
+  'start-inventory': startInventory,
+  'finish-inventory': finishInventory,
 };
 
 export default async function handler(req, res) {
