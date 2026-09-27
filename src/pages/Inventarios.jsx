@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { ClipboardList, Plus, Trash2 } from 'lucide-react';
 import { formatDateTime, INVENTORY_STATUS_LABELS } from '@/lib/format';
 import { canCreateInventory } from '@/lib/permissions';
+import { locationKind, mainLocationOf } from '@/lib/locations';
 
 const STATUS_STYLES = {
   draft: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
@@ -26,11 +27,13 @@ const STATUS_STYLES = {
 };
 
 export default function Inventarios() {
-  const { scopeLocations: locations, isScoped, user } = useApp();
+  const { scopeLocations: locations, locations: allLocations, isScoped, currentFilial, user } = useApp();
   const navigate = useNavigate();
   const [items, setItems] = useState(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', location_id: '', all_locations: false });
+  // Enquanto o usuário não mexe no nome, ele acompanha a unidade escolhida.
+  const [nameTouched, setNameTouched] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -40,13 +43,31 @@ export default function Inventarios() {
   };
   useEffect(() => { load(); }, []);
 
+  const today = new Date();
+  const monthLabel = today.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const period = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+  const selectedLocation = locations.find((l) => l.id === form.location_id);
+  const allUnits = form.all_locations && !isScoped;
+  const autoName = `Inventário ${allUnits ? 'geral' : selectedLocation?.name || ''} · ${period}`.replace('Inventário  ·', 'Inventário ·');
+  const inventoryName = nameTouched && form.name.trim() ? form.name.trim() : autoName;
+  const selectedKind = selectedLocation ? locationKind(allLocations, selectedLocation) : null;
+
+  // Abre já com a unidade da filial escolhida no seletor (na visão geral, a matriz).
+  const openNew = () => {
+    const main = mainLocationOf(allLocations);
+    const preferred = currentFilial && !currentFilial.overview ? currentFilial.id : main?.id;
+    const locationId = locations.some((l) => l.id === preferred) ? preferred : locations[0]?.id || '';
+    setForm({ name: '', location_id: locationId, all_locations: false });
+    setNameTouched(false);
+    setOpen(true);
+  };
+
   const create = async () => {
-    if (!form.name) { toast.error('Informe o nome'); return; }
-    if (isScoped && !form.location_id) { toast.error('Selecione a unidade'); return; }
+    if (!allUnits && !form.location_id) { toast.error('Selecione a unidade'); return; }
     try {
       const loc = locations.find((l) => l.id === form.location_id);
       const inv = await db.entities.Inventory.create({
-        name: form.name,
+        name: inventoryName,
         location_id: form.all_locations && !isScoped ? '' : (form.location_id || ''),
         location_name: form.all_locations && !isScoped ? 'Todas as unidades' : (loc?.name || ''),
         all_locations: form.all_locations && !isScoped,
@@ -55,7 +76,6 @@ export default function Inventarios() {
       });
       toast.success('Inventário criado');
       setOpen(false);
-      setForm({ name: '', location_id: '', all_locations: false });
       navigate(`/inventarios/${inv.id}`);
     } catch (e) { toast.error('Erro ao criar inventário'); }
   };
@@ -78,12 +98,12 @@ export default function Inventarios() {
   return (
     <Layout>
       <PageHeader title="Inventários" description="Realize conferências de patrimônio por unidade">
-        {canCreateInventory(user) && <Button onClick={() => setOpen(true)}><Plus className="w-4 h-4 mr-2" /> Novo inventário</Button>}
+        {canCreateInventory(user) && <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Novo inventário</Button>}
       </PageHeader>
       {items === null ? (
         <div className="space-y-2">{Array.from({length:4}).map((_,i)=><div key={i} className="h-20 rounded bg-muted animate-pulse" />)}</div>
       ) : items.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="Nenhum inventário criado" action={canCreateInventory(user) && <Button onClick={() => setOpen(true)}><Plus className="w-4 h-4 mr-2" /> Novo inventário</Button>} />
+        <EmptyState icon={ClipboardList} title="Nenhum inventário criado" action={canCreateInventory(user) && <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Novo inventário</Button>} />
       ) : (
         <div className="space-y-3">
           {items.map((inv) => (
@@ -111,11 +131,23 @@ export default function Inventarios() {
         <DialogContent>
           <DialogHeader><DialogTitle>Novo inventário</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm(f => ({...f, name: e.target.value}))} placeholder="Ex: Inventário Geral Agosto 2026" /></div>
-            {!isScoped && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.all_locations} onChange={(e) => setForm(f => ({...f, all_locations: e.target.checked}))} /> Todas as unidades</label>}
+            {!isScoped && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.all_locations} onChange={(e) => setForm(f => ({...f, all_locations: e.target.checked}))} /> Todas as unidades (inventário geral)</label>}
             {(isScoped || !form.all_locations) && (
-              <div><Label>Unidade</Label><Select value={form.location_id} onValueChange={(v) => setForm(f => ({...f, location_id: v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+              <div>
+                <Label>Unidade *</Label>
+                <Select value={form.location_id} onValueChange={(v) => setForm(f => ({...f, location_id: v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select>
+                {selectedKind === 'matriz' && <p className="text-xs text-muted-foreground mt-1">Confere só o que está na matriz; cada filial tem o próprio inventário.</p>}
+                {selectedKind !== 'matriz' && selectedLocation && <p className="text-xs text-muted-foreground mt-1">Confere esta unidade e as salas dela.</p>}
+              </div>
             )}
+            <div>
+              <Label>Nome</Label>
+              <Input value={nameTouched ? form.name : autoName} onChange={(e) => { setNameTouched(true); setForm(f => ({...f, name: e.target.value})); }} />
+              <p className="text-xs text-muted-foreground mt-1">{nameTouched ? 'Deixe em branco para usar o nome automático.' : 'Gerado automaticamente com a unidade e o mês; pode editar.'}</p>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+              Criado por <span className="font-medium text-foreground">{user?.full_name || user?.email}</span> em <span className="font-medium text-foreground">{today.toLocaleDateString('pt-BR')}</span>. A lista de patrimônios esperados é gerada quando o inventário for iniciado.
+            </div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={create}>Criar</Button></DialogFooter>
         </DialogContent>
