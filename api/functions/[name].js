@@ -766,6 +766,7 @@ async function startInventory(req, res, user, scope) {
       locationIds = inventoryLocationIds(locations, inventory.location_id);
     }
 
+    await client.query('delete from inventory_items where inventory_id = $1', [inventory.id]);
     const { rowCount } = await client.query(
       `insert into inventory_items (
         inventory_id, asset_id, asset_number, asset_name, expected_location_id, expected_location_name, status
@@ -820,6 +821,21 @@ async function finishInventory(req, res, user, scope) {
       return sendError(res, 403, 'Você não tem acesso a esta unidade');
     }
 
+    // Inventários iniciados pela versão antiga podem ter o mesmo patrimônio
+    // repetido; fica só um, o de status mais útil.
+    await client.query(
+      `delete from inventory_items where id in (
+        select id from (
+          select id, row_number() over (
+            partition by asset_id
+            order by case status when 'found' then 0 when 'misplaced' then 1 when 'not_found' then 2 else 3 end,
+                     scanned_at desc nulls last, id
+          ) as rn
+          from inventory_items where inventory_id = $1
+        ) ranked where rn > 1
+      )`,
+      [inventory.id]
+    );
     await client.query(
       "update inventory_items set status = 'not_found', updated_date = now() where inventory_id = $1 and status = 'pending'",
       [inventory.id]
@@ -850,6 +866,51 @@ async function finishInventory(req, res, user, scope) {
   }
 }
 
+// Reabre um inventário concluído para conferir de novo: o que ficou como "não
+// encontrado" volta a ser pendente; o que já foi encontrado continua marcado.
+async function reopenInventory(req, res, user, scope) {
+  const payload = req.body || {};
+  if (!payload.inventory_id) return sendError(res, 400, 'Informe o inventário');
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+
+    const { rows } = await client.query('select * from inventories where id = $1 for update', [payload.inventory_id]);
+    const inventory = rows[0];
+    if (!inventory) {
+      await client.query('rollback');
+      return sendError(res, 404, 'Inventário não encontrado');
+    }
+    if (inventory.status !== 'completed') {
+      await client.query('rollback');
+      return sendError(res, 400, 'Só é possível reabrir um inventário concluído');
+    }
+    if (scope.restrictedIds && !scope.restrictedIds.includes(inventory.location_id)) {
+      await client.query('rollback');
+      return sendError(res, 403, 'Você não tem acesso a esta unidade');
+    }
+
+    const { rowCount } = await client.query(
+      "update inventory_items set status = 'pending', updated_date = now() where inventory_id = $1 and status = 'not_found'",
+      [inventory.id]
+    );
+    await client.query(
+      "update inventories set status = 'in_progress', finished_at = null, summary = null, updated_date = now() where id = $1",
+      [inventory.id]
+    );
+
+    await client.query('commit');
+    sendJson(res, 200, { data: { reopened: rowCount } });
+  } catch (err) {
+    await client.query('rollback');
+    sendError(res, 500, err.message);
+  } finally {
+    client.release();
+  }
+}
+
 const FUNCTIONS = {
   'create-asset': createAsset,
   'create-asset-batch': createAssetBatch,
@@ -860,6 +921,7 @@ const FUNCTIONS = {
   'update-assets-state': updateAssetsState,
   'start-inventory': startInventory,
   'finish-inventory': finishInventory,
+  'reopen-inventory': reopenInventory,
 };
 
 export default async function handler(req, res) {

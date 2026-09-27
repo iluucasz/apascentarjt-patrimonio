@@ -169,6 +169,10 @@ create table if not exists inventories (
   created_date timestamptz not null default now(),
   updated_date timestamptz not null default now()
 );
+-- Inventário: data prevista, quem vai conferir e observações.
+alter table inventories add column if not exists scheduled_date date;
+alter table inventories add column if not exists responsible_person text not null default '';
+alter table inventories add column if not exists notes text not null default '';
 
 create table if not exists inventory_items (
   id uuid primary key default gen_random_uuid(),

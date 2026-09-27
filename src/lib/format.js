@@ -11,6 +11,19 @@ export function formatDate(value) {
   return d.toLocaleDateString('pt-BR');
 }
 
+// Datas sem hora (colunas date, ex.: "2026-10-15"): formata direto do texto.
+// new Date("2026-10-15") é meia-noite UTC, que no Brasil vira o dia anterior.
+export function formatDay(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '-';
+}
+
+// Hoje no fuso local, no formato do input date (aaaa-mm-dd).
+export function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function formatDateTime(value) {
   if (!value) return '-';
   const d = new Date(value);

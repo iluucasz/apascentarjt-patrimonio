@@ -10,12 +10,13 @@ import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { toast } from 'sonner';
 import { ClipboardList, Plus, Trash2 } from 'lucide-react';
-import { formatDateTime, INVENTORY_STATUS_LABELS } from '@/lib/format';
+import { formatDateTime, formatDay, todayISO, INVENTORY_STATUS_LABELS } from '@/lib/format';
 import { canCreateInventory } from '@/lib/permissions';
 import { locationKind, mainLocationOf } from '@/lib/locations';
 
@@ -31,7 +32,7 @@ export default function Inventarios() {
   const navigate = useNavigate();
   const [items, setItems] = useState(null);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', location_id: '', all_locations: false });
+  const [form, setForm] = useState({ name: '', location_id: '', all_locations: false, scheduled_date: '', responsible_person: '', notes: '' });
   // Enquanto o usuário não mexe no nome, ele acompanha a unidade escolhida.
   const [nameTouched, setNameTouched] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -43,12 +44,9 @@ export default function Inventarios() {
   };
   useEffect(() => { load(); }, []);
 
-  const today = new Date();
-  const monthLabel = today.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  const period = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
   const selectedLocation = locations.find((l) => l.id === form.location_id);
   const allUnits = form.all_locations && !isScoped;
-  const autoName = `Inventário ${allUnits ? 'geral' : selectedLocation?.name || ''} · ${period}`.replace('Inventário  ·', 'Inventário ·');
+  const autoName = `Inventário ${allUnits ? 'geral' : selectedLocation?.name || ''} · ${formatDay(form.scheduled_date)}`.replace('Inventário  ·', 'Inventário ·');
   const inventoryName = nameTouched && form.name.trim() ? form.name.trim() : autoName;
   const selectedKind = selectedLocation ? locationKind(allLocations, selectedLocation) : null;
 
@@ -57,13 +55,17 @@ export default function Inventarios() {
     const main = mainLocationOf(allLocations);
     const preferred = currentFilial && !currentFilial.overview ? currentFilial.id : main?.id;
     const locationId = locations.some((l) => l.id === preferred) ? preferred : locations[0]?.id || '';
-    setForm({ name: '', location_id: locationId, all_locations: false });
+    setForm({
+      name: '', location_id: locationId, all_locations: false,
+      scheduled_date: todayISO(), responsible_person: user?.full_name || user?.email || '', notes: '',
+    });
     setNameTouched(false);
     setOpen(true);
   };
 
   const create = async () => {
     if (!allUnits && !form.location_id) { toast.error('Selecione a unidade'); return; }
+    if (!form.scheduled_date) { toast.error('Informe a data do inventário'); return; }
     try {
       const loc = locations.find((l) => l.id === form.location_id);
       const inv = await db.entities.Inventory.create({
@@ -72,7 +74,10 @@ export default function Inventarios() {
         location_name: form.all_locations && !isScoped ? 'Todas as unidades' : (loc?.name || ''),
         all_locations: form.all_locations && !isScoped,
         status: 'draft',
-        created_by_name: user?.full_name || user?.email
+        created_by_name: user?.full_name || user?.email,
+        scheduled_date: form.scheduled_date,
+        responsible_person: form.responsible_person.trim(),
+        notes: form.notes.trim(),
       });
       toast.success('Inventário criado');
       setOpen(false);
@@ -112,7 +117,7 @@ export default function Inventarios() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">{inv.name}</p>
-                    <p className="text-sm text-muted-foreground">{inv.location_name || 'Todas as unidades'} · {formatDateTime(inv.created_date)}</p>
+                    <p className="text-sm text-muted-foreground">{inv.location_name || 'Todas as unidades'} · {inv.scheduled_date ? `Previsto para ${formatDay(inv.scheduled_date)}` : formatDateTime(inv.created_date)}{inv.responsible_person ? ` · Responsável: ${inv.responsible_person}` : ''}</p>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_STYLES[inv.status]}`}>{INVENTORY_STATUS_LABELS[inv.status]}</span>
                 </div>
@@ -128,7 +133,7 @@ export default function Inventarios() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Novo inventário</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {!isScoped && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.all_locations} onChange={(e) => setForm(f => ({...f, all_locations: e.target.checked}))} /> Todas as unidades (inventário geral)</label>}
@@ -140,14 +145,26 @@ export default function Inventarios() {
                 {selectedKind !== 'matriz' && selectedLocation && <p className="text-xs text-muted-foreground mt-1">Confere esta unidade e as salas dela.</p>}
               </div>
             )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Data do inventário *</Label>
+                <Input type="date" value={form.scheduled_date} onChange={(e) => setForm(f => ({...f, scheduled_date: e.target.value}))} />
+              </div>
+              <div>
+                <Label>Responsável pela conferência</Label>
+                <Input value={form.responsible_person} onChange={(e) => setForm(f => ({...f, responsible_person: e.target.value}))} placeholder="Quem vai conferir" />
+              </div>
+            </div>
             <div>
               <Label>Nome</Label>
               <Input value={nameTouched ? form.name : autoName} onChange={(e) => { setNameTouched(true); setForm(f => ({...f, name: e.target.value})); }} />
-              <p className="text-xs text-muted-foreground mt-1">{nameTouched ? 'Deixe em branco para usar o nome automático.' : 'Gerado automaticamente com a unidade e o mês; pode editar.'}</p>
+              <p className="text-xs text-muted-foreground mt-1">{nameTouched ? 'Deixe em branco para usar o nome automático.' : 'Gerado com a unidade e a data; pode editar.'}</p>
             </div>
-            <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-              Criado por <span className="font-medium text-foreground">{user?.full_name || user?.email}</span> em <span className="font-medium text-foreground">{today.toLocaleDateString('pt-BR')}</span>. A lista de patrimônios esperados é gerada quando o inventário for iniciado.
+            <div>
+              <Label>Observações</Label>
+              <Textarea value={form.notes} onChange={(e) => setForm(f => ({...f, notes: e.target.value}))} rows={2} placeholder="Ex: conferir também o depósito dos fundos" />
             </div>
+            <p className="text-xs text-muted-foreground">A lista de patrimônios esperados é gerada quando o inventário for iniciado.</p>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={create}>Criar</Button></DialogFooter>
         </DialogContent>

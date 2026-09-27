@@ -6,11 +6,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, Loader2, Play, CheckCheck, Download } from 'lucide-react';
-import { formatDateTime, INV_ITEM_LABELS, INV_ITEM_STYLES } from '@/lib/format';
+import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, Loader2, Play, CheckCheck, Download, RotateCcw } from 'lucide-react';
+import { formatDateTime, formatDay, INV_ITEM_LABELS, INV_ITEM_STYLES, INVENTORY_STATUS_LABELS } from '@/lib/format';
+
+const STATUS_STYLES = {
+  draft: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+};
 
 export default function InventarioDetail() {
   const { id } = useParams();
@@ -23,7 +31,9 @@ export default function InventarioDetail() {
   const [manual, setManual] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [working, setWorking] = useState(false);
+  // 'start' | 'finish' | 'reopen' enquanto a ação roda no servidor
+  const [working, setWorking] = useState(null);
+  const [confirm, setConfirm] = useState(null); // 'finish' | 'reopen'
   const html5QrRef = useRef(null);
   const lastCodeRef = useRef('');
   const lastTimeRef = useRef(0);
@@ -55,13 +65,13 @@ export default function InventarioDetail() {
   // O backend tira a "foto" dos patrimônios esperados da unidade (e das salas
   // dela, sem as filiais, que têm inventário próprio) numa única operação.
   const startInventory = async () => {
-    setWorking(true);
+    setWorking('start');
     try {
       const res = await db.functions.invoke('startInventory', { inventory_id: id });
       await load();
       toast.success(`Inventário iniciado com ${res.data.count} patrimônio${res.data.count === 1 ? '' : 's'}`);
     } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao iniciar'); }
-    finally { setWorking(false); }
+    finally { setWorking(null); }
   };
 
   const extractCode = (text) => {
@@ -155,16 +165,29 @@ export default function InventarioDetail() {
   };
 
   const finishInventory = async () => {
-    setWorking(true);
+    setConfirm(null);
+    setWorking('finish');
     try {
       await stopScan();
-      await db.functions.invoke('finishInventory', { inventory_id: id });
       setManual(false);
       setFeedback(null);
+      await db.functions.invoke('finishInventory', { inventory_id: id });
       await load();
       toast.success('Inventário finalizado');
     } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao finalizar'); }
-    finally { setWorking(false); }
+    finally { setWorking(null); }
+  };
+
+  // Concluído -> em andamento de novo: os "não encontrados" voltam a pendentes.
+  const reopenInventory = async () => {
+    setConfirm(null);
+    setWorking('reopen');
+    try {
+      const res = await db.functions.invoke('reopenInventory', { inventory_id: id });
+      await load();
+      toast.success(`Inventário reaberto · ${res.data.reopened} ite${res.data.reopened === 1 ? 'm voltou' : 'ns voltaram'} para pendente`);
+    } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao reabrir'); }
+    finally { setWorking(null); }
   };
 
   const exportCsv = () => {
@@ -181,14 +204,25 @@ export default function InventarioDetail() {
   if (!inventory) return <Layout><div className="h-40 rounded bg-muted animate-pulse" /></Layout>;
 
   const s = stats();
+  const busyLabel = working === 'finish' ? 'Finalizando o inventário…' : working === 'reopen' ? 'Reabrindo o inventário…' : null;
 
   return (
     <Layout>
-      <PageHeader title={inventory.name} description={`${inventory.location_name || 'Todas as unidades'} · ${formatDateTime(inventory.created_date)}`} />
+      <PageHeader
+        title={inventory.name}
+        description={[
+          inventory.location_name || 'Todas as unidades',
+          inventory.scheduled_date ? `Previsto para ${formatDay(inventory.scheduled_date)}` : `Criado em ${formatDateTime(inventory.created_date)}`,
+          inventory.responsible_person ? `Responsável: ${inventory.responsible_person}` : null,
+        ].filter(Boolean).join(' · ')}
+      >
+        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[inventory.status] || STATUS_STYLES.draft}`}>{INVENTORY_STATUS_LABELS[inventory.status] || inventory.status}</span>
+      </PageHeader>
+      {inventory.notes && <p className="text-sm text-muted-foreground -mt-2 mb-4 whitespace-pre-line">{inventory.notes}</p>}
 
       {inventory.status === 'draft' && (
         <div className="rounded-xl border border-border bg-card p-6 text-center">
-          {working ? (
+          {working === 'start' ? (
             <div className="py-4" role="status" aria-live="polite">
               <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
               <p className="font-medium mt-3">Gerando a lista de patrimônios esperados…</p>
@@ -205,14 +239,38 @@ export default function InventarioDetail() {
 
       {inventory.status !== 'draft' && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
             <Stat label="Esperados" value={s.expected} />
             <Stat label="Encontrados" value={s.found} color="text-emerald-600" />
             <Stat label="Pendentes" value={s.pending} color="text-slate-600" />
             <Stat label="Unidade incorreta" value={s.misplaced} color="text-amber-600" />
+            <Stat label="Não encontrados" value={s.notFound} color="text-rose-600" />
           </div>
 
-          {inventory.status === 'in_progress' && !scanning && !manual && (
+          {busyLabel && (
+            <div className="rounded-xl border border-border bg-card p-6 text-center mb-4" role="status" aria-live="polite">
+              <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
+              <p className="font-medium mt-3">{busyLabel}</p>
+              <p className="text-sm text-muted-foreground mt-1">Não feche esta página.</p>
+            </div>
+          )}
+
+          {inventory.status === 'completed' && !busyLabel && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-900 p-5 mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="font-semibold">Inventário concluído</p>
+                  <p className="text-sm text-muted-foreground">
+                    Finalizado em {formatDateTime(inventory.finished_at)} · {s.found} encontrado{s.found === 1 ? '' : 's'}, {s.notFound} não encontrado{s.notFound === 1 ? '' : 's'}{s.misplaced ? `, ${s.misplaced} em unidade incorreta` : ''}
+                  </p>
+                </div>
+              </div>
+              <Button variant="outline" onClick={() => setConfirm('reopen')}><RotateCcw className="w-4 h-4 mr-2" /> Reabrir inventário</Button>
+            </div>
+          )}
+
+          {inventory.status === 'in_progress' && !scanning && !manual && !busyLabel && (
             <div className="max-w-md mx-auto text-center py-6">
               <button onClick={startScan} className="w-full py-8 rounded-2xl bg-primary text-primary-foreground font-semibold text-lg flex flex-col items-center gap-3 active:scale-[0.98] transition-transform">
                 <ScanLine className="w-10 h-10" /> Escanear patrimônio
@@ -289,7 +347,7 @@ export default function InventarioDetail() {
 
           <div className="flex gap-2 mt-4">
             {inventory.status === 'in_progress' && (
-              <Button variant="outline" onClick={finishInventory} disabled={working}>{working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCheck className="w-4 h-4 mr-2" />} {working ? 'Finalizando…' : 'Finalizar inventário'}</Button>
+              <Button variant="outline" onClick={() => setConfirm('finish')} disabled={!!working}>{working === 'finish' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCheck className="w-4 h-4 mr-2" />} {working === 'finish' ? 'Finalizando…' : 'Finalizar inventário'}</Button>
             )}
             <Button variant="outline" onClick={exportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
           </div>
@@ -318,6 +376,26 @@ export default function InventarioDetail() {
           </div>
         </>
       )}
+      <ConfirmDialog
+        open={confirm === 'finish'}
+        onOpenChange={(v) => { if (!v) setConfirm(null); }}
+        title="Finalizar inventário?"
+        description={s.pending > 0
+          ? `${s.pending} ite${s.pending === 1 ? 'm ainda pendente será marcado' : 'ns ainda pendentes serão marcados'} como "não encontrado". Você pode reabrir o inventário depois para conferir de novo.`
+          : 'Todos os itens já foram conferidos. Você pode reabrir o inventário depois se precisar.'}
+        confirmLabel="Finalizar"
+        destructive={false}
+        onConfirm={finishInventory}
+      />
+      <ConfirmDialog
+        open={confirm === 'reopen'}
+        onOpenChange={(v) => { if (!v) setConfirm(null); }}
+        title="Reabrir inventário?"
+        description={`O inventário volta para "em andamento" e ${s.notFound === 1 ? 'o item não encontrado volta' : `os ${s.notFound} itens não encontrados voltam`} a ficar pendente${s.notFound === 1 ? '' : 's'} para você conferir de novo. O que já foi encontrado continua marcado.`}
+        confirmLabel="Reabrir"
+        destructive={false}
+        onConfirm={reopenInventory}
+      />
     </Layout>
   );
 }
