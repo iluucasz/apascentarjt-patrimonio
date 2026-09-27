@@ -86,6 +86,11 @@ alter table assets add column if not exists batch_id uuid;
 -- que ele pode ver (null = todos). Ver api/_lib/scope.js.
 alter table locations add column if not exists is_main boolean not null default false;
 alter table users add column if not exists allowed_location_ids uuid[];
+-- Logo e cor de fundo do ícone na barra lateral. Vazio = herda do local pai,
+-- depois da filial principal e por fim das configurações (system_settings).
+alter table locations add column if not exists logo_url text not null default '';
+alter table locations add column if not exists logo_bg_color text not null default '';
+alter table system_settings add column if not exists logo_bg_color text not null default '';
 create index if not exists assets_batch_id_idx on assets (batch_id);
 
 create table if not exists asset_movements (

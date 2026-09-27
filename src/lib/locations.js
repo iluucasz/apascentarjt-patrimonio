@@ -44,3 +44,26 @@ export function locationTree(locations) {
   for (const l of locations) if (!seen.has(l.id)) out.push({ location: l, depth: 0 });
   return out;
 }
+
+// Logo e cor de fundo de um local: o primeiro valor preenchido subindo pela
+// árvore (o próprio local, o pai, o avô...), depois a filial principal e por
+// fim as configurações do sistema. Logo e cor herdam cada um separadamente.
+// locationId vazio = visão geral (principal / configurações).
+export function resolveBranding(locations, locationId, settings) {
+  const byId = new Map(locations.map((l) => [l.id, l]));
+  const chain = [];
+  const seen = new Set();
+  let current = locationId ? byId.get(locationId) : null;
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    chain.push(current);
+    current = current.parent_location_id ? byId.get(current.parent_location_id) : null;
+  }
+  const main = locations.find((l) => l.is_main);
+  if (main && !seen.has(main.id)) chain.push(main);
+  const pick = (key, fallback) => chain.find((l) => l[key])?.[key] || fallback || '';
+  return {
+    logoUrl: pick('logo_url', settings?.church_logo_url),
+    bgColor: pick('logo_bg_color', settings?.logo_bg_color),
+  };
+}

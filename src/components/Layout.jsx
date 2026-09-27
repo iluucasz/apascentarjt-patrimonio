@@ -4,9 +4,11 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ScanLine, ClipboardList, ArrowLeftRight, Wrench,
-  MapPin, Tags, QrCode, Users, Settings, Menu, X, Search, LogOut, Church, ChevronsUpDown, Check
+  MapPin, Tags, QrCode, Users, Settings, Menu, X, Search, LogOut, ChevronsUpDown, Check
 } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
+import BrandMark from '@/components/BrandMark';
+import { resolveBranding } from '@/lib/locations';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
@@ -29,7 +31,10 @@ const NAV = [
 ];
 
 export default function Layout({ children }) {
-  const { user, settings, filialOptions, currentFilial, setFilial } = useApp();
+  const { user, settings, locations, filialOptions, currentFilial, setFilial } = useApp();
+  // Logo/cor da filial atual (herdando do local pai, da principal e das configurações).
+  const brandingOf = (id) => resolveBranding(locations, id, settings);
+  const branding = brandingOf(currentFilial?.id || '');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
@@ -58,13 +63,7 @@ export default function Layout({ children }) {
     : currentFilial.main ? `${currentFilial.name} · visão geral` : currentFilial.name;
   const Brand = (
     <>
-      <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 overflow-hidden">
-        {settings?.church_logo_url ? (
-          <img src={settings.church_logo_url} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <Church className="w-5 h-5" />
-        )}
-      </div>
+      <BrandMark logoUrl={branding.logoUrl} bgColor={branding.bgColor} />
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate text-foreground">{settings?.church_name || 'Gestão Patrimonial'}</p>
         <p className="text-xs text-muted-foreground truncate">{filialLabel}</p>
@@ -87,6 +86,7 @@ export default function Layout({ children }) {
             {filialOptions.map((o) => (
               <DropdownMenuItem key={o.id || 'all'} onSelect={() => { setFilial(o.id); setMobileOpen(false); }} className="gap-2">
                 <Check className={cn('w-4 h-4 shrink-0', currentFilial?.id === o.id ? 'opacity-100' : 'opacity-0')} />
+                <BrandMark {...brandingOf(o.id)} className="w-6 h-6 rounded-md" iconClassName="w-3.5 h-3.5" />
                 <span className="truncate flex-1">{o.name}</span>
                 {o.main && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Principal</span>}
               </DropdownMenuItem>

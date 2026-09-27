@@ -9,6 +9,7 @@ export const ENTITIES = {
     columns: {
       church_name: 'text',
       church_logo_url: 'text',
+      logo_bg_color: 'text',
       asset_prefix: 'text',
       next_asset_sequence: 'number',
       digit_count: 'number',
@@ -32,6 +33,8 @@ export const ENTITIES = {
       parent_location_name: 'text',
       active: 'boolean',
       is_main: 'boolean',
+      logo_url: 'text',
+      logo_bg_color: 'text',
     },
   },
   Asset: {

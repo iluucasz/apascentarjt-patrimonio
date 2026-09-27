@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Save, Loader2, Upload, Church } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
+import BrandMark from '@/components/BrandMark';
 import { Settings as SettingsIcon } from 'lucide-react';
 
 export default function Configuracoes() {
@@ -50,7 +51,9 @@ export default function Configuracoes() {
         church_logo_url: form.church_logo_url,
         asset_prefix: form.asset_prefix,
         digit_count: Number(form.digit_count) || 6,
-        public_asset_lookup: form.public_asset_lookup
+        public_asset_lookup: form.public_asset_lookup,
+        // Só envia quando muda, para salvar continuar funcionando antes da migração da coluna.
+        ...((form.logo_bg_color || '') !== (settings.logo_bg_color || '') ? { logo_bg_color: form.logo_bg_color || '' } : {}),
       });
       await refresh();
       toast.success('Configurações salvas');
@@ -73,6 +76,15 @@ export default function Configuracoes() {
               {form.church_logo_url ? <img src={form.church_logo_url} alt="" className="h-12 object-contain" /> : <div className="h-12 w-12 rounded bg-muted flex items-center justify-center"><Upload className="w-5 h-5 text-muted-foreground" /></div>}
               <input type="file" accept="image/*" onChange={handleLogo} className="text-sm" />
               {uploading && <span className="text-xs text-muted-foreground">Enviando...</span>}
+            </div>
+          </div>
+          <div>
+            <Label>Cor de fundo do ícone</Label>
+            <p className="text-xs text-muted-foreground mb-1.5">Fundo do quadrado da logo na barra lateral. Cada local pode ter a sua em Locais; quem não tiver usa esta.</p>
+            <div className="flex items-center gap-3">
+              <BrandMark logoUrl={form.church_logo_url} bgColor={form.logo_bg_color} className="w-12 h-12" iconClassName="w-6 h-6" />
+              <input type="color" value={form.logo_bg_color || '#111827'} onChange={(e) => set('logo_bg_color', e.target.value)} className="h-9 w-14 cursor-pointer rounded border border-input bg-transparent" />
+              {form.logo_bg_color && <Button type="button" size="sm" variant="ghost" onClick={() => set('logo_bg_color', '')}>Usar cor padrão</Button>}
             </div>
           </div>
         </div>
