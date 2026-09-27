@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Save, Camera, Loader2, CheckCircle2, Printer, PackagePlus, Plus, Trash2 } from 'lucide-react';
 import { STATUS_LABELS, CONDITION_LABELS } from '@/lib/format';
 import { Image } from '@/components/ui/image';
+import PhotoPicker from '@/components/PhotoPicker';
 import AssetQRCode from '@/components/AssetQRCode';
 import AssetBarcode from '@/components/AssetBarcode';
 
@@ -254,7 +255,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
                   <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center"><Camera className="w-8 h-8 text-muted-foreground" /></div>
                 )}
                 <div>
-                  <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="text-sm" />
+                  <PhotoPicker onChange={handlePhoto} disabled={uploading} />
                   {uploading && <p className="text-xs text-muted-foreground mt-1">Enviando...</p>}
                 </div>
               </div>

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Save, Loader2, Camera, Plus, Trash2 } from 'lucide-react';
 import { Image } from '@/components/ui/image';
+import PhotoPicker from '@/components/PhotoPicker';
 import { STATUS_LABELS, CONDITION_LABELS } from '@/lib/format';
 import { canDeleteAsset } from '@/lib/permissions';
 
@@ -231,7 +232,7 @@ export default function EditarLote() {
                   ) : (
                     <p className="font-medium truncate">{rowLabel(r)}</p>
                   )}
-                  <input type="file" accept="image/*" capture="environment" onChange={(e) => handleVariantPhoto(r.rowId, e)} className="text-xs w-full" />
+                  <div className="mt-1"><PhotoPicker onChange={(e) => handleVariantPhoto(r.rowId, e)} disabled={!!uploadingKey} /></div>
                   {uploadingKey === r.rowId && <p className="text-xs text-muted-foreground mt-1">Enviando...</p>}
                 </div>
                 <div className="w-24 shrink-0">
