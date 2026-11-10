@@ -911,7 +911,73 @@ async function reopenInventory(req, res, user, scope) {
   }
 }
 
+// Conferência manual em lote: marca itens do inventário como encontrados (na
+// unidade esperada) ou desfaz a marcação. Uma query só, mesmo para "todos".
+async function markInventoryItems(req, res, user, scope) {
+  const payload = req.body || {};
+  const itemIds = Array.isArray(payload.item_ids) ? payload.item_ids.filter((id) => typeof id === 'string') : [];
+  if (!payload.inventory_id) return sendError(res, 400, 'Informe o inventário');
+  if (itemIds.length === 0) return sendError(res, 400, 'Selecione ao menos um item');
+  if (payload.action !== 'found' && payload.action !== 'pending') return sendError(res, 400, 'Ação inválida');
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+
+    const { rows } = await client.query('select * from inventories where id = $1 for update', [payload.inventory_id]);
+    const inventory = rows[0];
+    if (!inventory) {
+      await client.query('rollback');
+      return sendError(res, 404, 'Inventário não encontrado');
+    }
+    if (inventory.status !== 'in_progress') {
+      await client.query('rollback');
+      return sendError(res, 400, 'Este inventário não está em andamento');
+    }
+    if (scope.restrictedIds && !scope.restrictedIds.includes(inventory.location_id)) {
+      await client.query('rollback');
+      return sendError(res, 403, 'Você não tem acesso a esta unidade');
+    }
+
+    const { rows: updated } = payload.action === 'found'
+      ? await client.query(
+        `update inventory_items set
+           status = 'found',
+           found_location_id = expected_location_id,
+           found_location_name = expected_location_name,
+           scanned_at = now(),
+           scanned_by_name = $3,
+           updated_date = now()
+         where inventory_id = $1 and id = any($2::uuid[]) and status in ('pending', 'not_found')
+         returning *`,
+        [inventory.id, itemIds, user.full_name || user.email]
+      )
+      : await client.query(
+        `update inventory_items set
+           status = 'pending',
+           found_location_id = null,
+           found_location_name = '',
+           scanned_at = null,
+           scanned_by_name = '',
+           updated_date = now()
+         where inventory_id = $1 and id = any($2::uuid[]) and status in ('found', 'misplaced')
+         returning *`,
+        [inventory.id, itemIds]
+      );
+
+    await client.query('commit');
+    sendJson(res, 200, { data: { items: updated } });
+  } catch (err) {
+    await client.query('rollback');
+    sendError(res, 500, err.message);
+  } finally {
+    client.release();
+  }
+}
+
 const FUNCTIONS = {
+  'mark-inventory-items': markInventoryItems,
   'create-asset': createAsset,
   'create-asset-batch': createAssetBatch,
   'update-asset-batch': updateAssetBatch,

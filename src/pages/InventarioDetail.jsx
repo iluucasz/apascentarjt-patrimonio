@@ -9,8 +9,9 @@ import PageHeader from '@/components/PageHeader';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, Loader2, Play, CheckCheck, Download, RotateCcw, FileText, Share2 } from 'lucide-react';
+import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, Loader2, Play, CheckCheck, Download, RotateCcw, FileText, Share2, Search, Undo2 } from 'lucide-react';
 import { formatDateTime, formatDay, INV_ITEM_LABELS, INV_ITEM_STYLES, INVENTORY_STATUS_LABELS } from '@/lib/format';
 
 const STATUS_STYLES = {
@@ -35,6 +36,11 @@ export default function InventarioDetail() {
   const [working, setWorking] = useState(null);
   const [confirm, setConfirm] = useState(null); // 'finish' | 'reopen'
   const [pdfWorking, setPdfWorking] = useState(null); // 'share' | 'save' enquanto o PDF é gerado
+  // Conferência manual: itens marcados na lista, filtro e busca da lista.
+  const [selected, setSelected] = useState(() => new Set());
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [marking, setMarking] = useState(false);
   const html5QrRef = useRef(null);
   const lastCodeRef = useRef('');
   const lastTimeRef = useRef(0);
@@ -212,6 +218,46 @@ export default function InventarioDetail() {
     finally { setPdfWorking(null); }
   };
 
+  const visibleItems = items.filter((i) => {
+    if (statusFilter !== 'all' && i.status !== statusFilter) return false;
+    const q = search.trim().toLowerCase();
+    return !q || `${i.asset_number} ${i.asset_name}`.toLowerCase().includes(q);
+  });
+  const canMark = inventory?.status === 'in_progress';
+  const toggleOne = (itemId) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+    return next;
+  });
+  const allVisibleSelected = visibleItems.length > 0 && visibleItems.every((i) => selected.has(i.id));
+  const toggleAllVisible = () => setSelected((prev) => {
+    const next = new Set(prev);
+    if (allVisibleSelected) visibleItems.forEach((i) => next.delete(i.id));
+    else visibleItems.forEach((i) => next.add(i.id));
+    return next;
+  });
+  const isMarkable = (i) => i.status === 'pending' || i.status === 'not_found';
+  const isUnmarkable = (i) => i.status === 'found' || i.status === 'misplaced';
+  const selectedItems = items.filter((i) => selected.has(i.id));
+  const markableCount = selectedItems.filter(isMarkable).length;
+  const unmarkableCount = selectedItems.filter(isUnmarkable).length;
+
+  // Marca (ou desfaz) os itens selecionados no servidor, de uma vez.
+  const markSelected = async (action) => {
+    const ids = selectedItems.filter(action === 'found' ? isMarkable : isUnmarkable).map((i) => i.id);
+    if (ids.length === 0) return;
+    setMarking(true);
+    try {
+      const res = await db.functions.invoke('markInventoryItems', { inventory_id: id, item_ids: ids, action });
+      const byId = new Map(res.data.items.map((i) => [i.id, i]));
+      setItems((prev) => prev.map((i) => byId.get(i.id) || i));
+      setSelected(new Set());
+      const n = res.data.items.length;
+      toast.success(action === 'found' ? `${n} ite${n === 1 ? 'm marcado' : 'ns marcados'} como encontrado${n === 1 ? '' : 's'}` : `${n} ite${n === 1 ? 'm voltou' : 'ns voltaram'} para pendente`);
+    } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao marcar itens'); }
+    finally { setMarking(false); }
+  };
+
   const exportCsv = () => {
     const rows = [['Número', 'Nome', 'Unidade esperada', 'Unidade encontrada', 'Status', 'Escaneado em', 'Por']];
     items.forEach((i) => rows.push([i.asset_number, i.asset_name, i.expected_location_name, i.found_location_name || '', INV_ITEM_LABELS[i.status], i.scanned_at ? formatDateTime(i.scanned_at) : '', i.scanned_by_name || '']));
@@ -378,9 +424,41 @@ export default function InventarioDetail() {
             <Button variant="outline" onClick={exportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
           </div>
 
-          <div className="mt-6 rounded-xl border border-border bg-card overflow-hidden">
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar número ou nome" className="pl-9" />
+            </div>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filtrar por status" className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="all">Todos os status</option>
+              {Object.entries(INV_ITEM_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <span className="text-xs text-muted-foreground">{visibleItems.length} de {items.length}</span>
+          </div>
+
+          {canMark && selected.size > 0 && (
+            <div className="mt-3 rounded-xl border border-border bg-card p-3 flex flex-wrap items-center gap-2 sticky top-2 z-10 shadow-sm">
+              <span className="text-sm font-medium mr-auto">{selected.size} selecionado{selected.size === 1 ? '' : 's'}</span>
+              {markableCount > 0 && (
+                <Button size="sm" onClick={() => markSelected('found')} disabled={marking}>
+                  {marking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />} Marcar {markableCount} como encontrado{markableCount === 1 ? '' : 's'}
+                </Button>
+              )}
+              {unmarkableCount > 0 && (
+                <Button size="sm" variant="outline" onClick={() => markSelected('pending')} disabled={marking}><Undo2 className="w-4 h-4 mr-2" /> Desmarcar {unmarkableCount}</Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={marking}>Limpar seleção</Button>
+            </div>
+          )}
+
+          <div className="mt-3 rounded-xl border border-border bg-card overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground"><tr>
+                {canMark && (
+                  <th className="w-10 px-4 py-2">
+                    <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAllVisible} disabled={visibleItems.length === 0} aria-label="Selecionar todos os itens da lista" />
+                  </th>
+                )}
                 <th className="text-left font-medium px-4 py-2">Número</th>
                 <th className="text-left font-medium px-4 py-2">Nome</th>
                 <th className="text-left font-medium px-4 py-2 hidden sm:table-cell">Esperado</th>
@@ -388,8 +466,13 @@ export default function InventarioDetail() {
                 <th className="text-left font-medium px-4 py-2">Status</th>
               </tr></thead>
               <tbody>
-                {items.map((it) => (
-                  <tr key={it.id} className="border-t border-border">
+                {visibleItems.map((it) => (
+                  <tr key={it.id} className={`border-t border-border ${canMark ? 'cursor-pointer hover:bg-muted/40' : ''} ${selected.has(it.id) ? 'bg-muted/60' : ''}`} onClick={canMark ? () => toggleOne(it.id) : undefined}>
+                    {canMark && (
+                      <td className="w-10 px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox checked={selected.has(it.id)} onCheckedChange={() => toggleOne(it.id)} aria-label={`Selecionar ${it.asset_number}`} />
+                      </td>
+                    )}
                     <td className="px-4 py-2 font-mono text-xs">{it.asset_number}</td>
                     <td className="px-4 py-2 truncate max-w-[160px]">{it.asset_name}</td>
                     <td className="px-4 py-2 hidden sm:table-cell text-muted-foreground">{it.expected_location_name || '-'}</td>
@@ -397,6 +480,9 @@ export default function InventarioDetail() {
                     <td className="px-4 py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${INV_ITEM_STYLES[it.status]}`}>{INV_ITEM_LABELS[it.status]}</span></td>
                   </tr>
                 ))}
+                {visibleItems.length === 0 && (
+                  <tr><td colSpan={canMark ? 6 : 5} className="px-4 py-8 text-center text-muted-foreground">Nenhum item encontrado com esse filtro.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
