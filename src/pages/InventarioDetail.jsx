@@ -10,7 +10,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, Loader2, Play, CheckCheck, Download, RotateCcw } from 'lucide-react';
+import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, Loader2, Play, CheckCheck, Download, RotateCcw, FileText, Share2 } from 'lucide-react';
 import { formatDateTime, formatDay, INV_ITEM_LABELS, INV_ITEM_STYLES, INVENTORY_STATUS_LABELS } from '@/lib/format';
 
 const STATUS_STYLES = {
@@ -34,6 +34,7 @@ export default function InventarioDetail() {
   // 'start' | 'finish' | 'reopen' enquanto a ação roda no servidor
   const [working, setWorking] = useState(null);
   const [confirm, setConfirm] = useState(null); // 'finish' | 'reopen'
+  const [pdfWorking, setPdfWorking] = useState(null); // 'share' | 'save' enquanto o PDF é gerado
   const html5QrRef = useRef(null);
   const lastCodeRef = useRef('');
   const lastTimeRef = useRef(0);
@@ -188,6 +189,27 @@ export default function InventarioDetail() {
       toast.success(`Inventário reaberto · ${res.data.reopened} ite${res.data.reopened === 1 ? 'm voltou' : 'ns voltaram'} para pendente`);
     } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao reabrir'); }
     finally { setWorking(null); }
+  };
+
+  // PDF do relatório: "Enviar" abre o compartilhar do celular (WhatsApp etc.);
+  // "Baixar" salva o arquivo. O menu de compartilhar só existe em alguns aparelhos.
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+  const sharePdf = async () => {
+    setPdfWorking('share');
+    try {
+      const { shareInventoryPdf } = await import('@/lib/inventoryPdf');
+      const result = await shareInventoryPdf(inventory, items);
+      if (result === 'downloaded') toast.success('PDF salvo no aparelho');
+    } catch (e) { toast.error('Não foi possível gerar o PDF'); }
+    finally { setPdfWorking(null); }
+  };
+  const savePdf = async () => {
+    setPdfWorking('save');
+    try {
+      const { downloadInventoryPdf } = await import('@/lib/inventoryPdf');
+      await downloadInventoryPdf(inventory, items);
+    } catch (e) { toast.error('Não foi possível gerar o PDF'); }
+    finally { setPdfWorking(null); }
   };
 
   const exportCsv = () => {
@@ -345,10 +367,14 @@ export default function InventarioDetail() {
             </div>
           )}
 
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-4">
             {inventory.status === 'in_progress' && (
               <Button variant="outline" onClick={() => setConfirm('finish')} disabled={!!working}>{working === 'finish' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCheck className="w-4 h-4 mr-2" />} {working === 'finish' ? 'Finalizando…' : 'Finalizar inventário'}</Button>
             )}
+            {canShare && (
+              <Button onClick={sharePdf} disabled={!!pdfWorking}>{pdfWorking === 'share' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Share2 className="w-4 h-4 mr-2" />} {pdfWorking === 'share' ? 'Gerando PDF…' : 'Enviar PDF'}</Button>
+            )}
+            <Button variant="outline" onClick={savePdf} disabled={!!pdfWorking}>{pdfWorking === 'save' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />} {pdfWorking === 'save' ? 'Gerando PDF…' : 'Baixar PDF'}</Button>
             <Button variant="outline" onClick={exportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
           </div>
 
