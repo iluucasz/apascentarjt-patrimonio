@@ -39,16 +39,16 @@ export default function Login() {
       subtitle="Entre na sua conta"
     >
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+        <div role="alert" className="mb-4 p-3.5 rounded-lg bg-red-50 text-red-800 ring-1 ring-inset ring-red-700/20 text-sm font-medium">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
+        <div>
           <Label htmlFor="email">E-mail</Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground" aria-hidden="true" />
             <Input
               id="email"
               type="email"
@@ -62,15 +62,15 @@ export default function Login() {
             />
           </div>
         </div>
-        <div className="space-y-2">
+        <div>
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Senha</Label>
-            <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+            <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:underline underline-offset-4">
               Esqueceu a senha?
             </Link>
           </div>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground" aria-hidden="true" />
             <Input
               id="password"
               type="password"
@@ -83,10 +83,10 @@ export default function Login() {
             />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
+        <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
           {loading ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="animate-spin" />
               Entrando...
             </>
           ) : (

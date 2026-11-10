@@ -11,14 +11,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import StatusPill from '@/components/StatusPill';
 import { ScanLine, Keyboard, XCircle, CheckCircle2, AlertTriangle, Loader2, Play, CheckCheck, Download, RotateCcw, FileText, Share2, Search, Undo2 } from 'lucide-react';
-import { formatDateTime, formatDay, INV_ITEM_LABELS, INV_ITEM_STYLES, INVENTORY_STATUS_LABELS } from '@/lib/format';
+import { formatDateTime, formatDay, INV_ITEM_LABELS, INV_ITEM_TONES, INVENTORY_STATUS_LABELS, INVENTORY_STATUS_TONES, TONE_SOLID, TONES } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
-const STATUS_STYLES = {
-  draft: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+// Resultado de cada leitura do scanner: ícone, cor e título.
+const FEEDBACK = {
+  found: { tone: 'green', icon: CheckCircle2, title: 'Patrimônio encontrado' },
+  misplaced: { tone: 'amber', icon: AlertTriangle, title: 'Unidade incorreta' },
+  already: { tone: 'blue', icon: CheckCircle2, title: 'Esse patrimônio já foi conferido' },
+  error: { tone: 'red', icon: XCircle, title: 'Não foi possível conferir agora' },
+  not_found: { tone: 'red', icon: XCircle, title: 'Patrimônio não encontrado' },
 };
 
 export default function InventarioDetail() {
@@ -269,10 +274,18 @@ export default function InventarioDetail() {
     URL.revokeObjectURL(url);
   };
 
-  if (!inventory) return <Layout><div className="h-40 rounded bg-muted animate-pulse" /></Layout>;
+  if (!inventory) return <Layout><div className="h-10 w-72 rounded-lg bg-muted animate-pulse mb-6" /><div className="h-40 rounded-2xl bg-muted animate-pulse" /></Layout>;
 
   const s = stats();
   const busyLabel = working === 'finish' ? 'Finalizando o inventário…' : working === 'reopen' ? 'Reabrindo o inventário…' : null;
+  const checked = s.expected - s.pending;
+  const pct = s.expected ? Math.round((checked / s.expected) * 100) : 0;
+  const segments = [
+    { key: 'found', n: s.found, label: 'Encontrados', tone: 'green' },
+    { key: 'misplaced', n: s.misplaced, label: 'Unidade incorreta', tone: 'amber' },
+    { key: 'not_found', n: s.notFound, label: 'Não encontrados', tone: 'red' },
+    { key: 'pending', n: s.pending, label: 'Pendentes', tone: 'slate' },
+  ];
 
   return (
     <Layout>
@@ -284,22 +297,22 @@ export default function InventarioDetail() {
           inventory.responsible_person ? `Responsável: ${inventory.responsible_person}` : null,
         ].filter(Boolean).join(' · ')}
       >
-        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[inventory.status] || STATUS_STYLES.draft}`}>{INVENTORY_STATUS_LABELS[inventory.status] || inventory.status}</span>
+        <StatusPill tone={INVENTORY_STATUS_TONES[inventory.status] || 'slate'} className="text-sm px-3 py-1">{INVENTORY_STATUS_LABELS[inventory.status] || inventory.status}</StatusPill>
       </PageHeader>
-      {inventory.notes && <p className="text-sm text-muted-foreground -mt-2 mb-4 whitespace-pre-line">{inventory.notes}</p>}
+      {inventory.notes && <p className="text-[15px] text-muted-foreground -mt-3 mb-5 whitespace-pre-line max-w-2xl">{inventory.notes}</p>}
 
       {inventory.status === 'draft' && (
-        <div className="rounded-xl border border-border bg-card p-6 text-center">
+        <div className="rounded-2xl border border-border bg-card shadow-card p-6 sm:p-8 text-center">
           {working === 'start' ? (
             <div className="py-4" role="status" aria-live="polite">
               <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
-              <p className="font-medium mt-3">Gerando a lista de patrimônios esperados…</p>
-              <p className="text-sm text-muted-foreground mt-1">Pode levar alguns segundos em unidades com muitos itens. Não feche esta página.</p>
+              <p className="font-bold text-lg mt-3">Gerando a lista de patrimônios esperados…</p>
+              <p className="text-[15px] text-muted-foreground mt-1">Pode levar alguns segundos em unidades com muitos itens. Não feche esta página.</p>
             </div>
           ) : (
             <>
-              <p className="text-muted-foreground">O inventário está pronto para iniciar. Será gerada a lista dos patrimônios esperados nesta unidade (e nas salas dela; as filiais têm inventário próprio).</p>
-              <Button className="mt-4" onClick={startInventory}><Play className="w-4 h-4 mr-2" /> Iniciar inventário</Button>
+              <p className="text-[15px] text-muted-foreground max-w-lg mx-auto">O inventário está pronto para iniciar. Será gerada a lista dos patrimônios esperados nesta unidade (e nas salas dela; as filiais têm inventário próprio).</p>
+              <Button size="lg" className="mt-5" onClick={startInventory}><Play /> Iniciar inventário</Button>
             </>
           )}
         </div>
@@ -307,184 +320,207 @@ export default function InventarioDetail() {
 
       {inventory.status !== 'draft' && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-            <Stat label="Esperados" value={s.expected} />
-            <Stat label="Encontrados" value={s.found} color="text-emerald-600" />
-            <Stat label="Pendentes" value={s.pending} color="text-slate-600" />
-            <Stat label="Unidade incorreta" value={s.misplaced} color="text-amber-600" />
-            <Stat label="Não encontrados" value={s.notFound} color="text-rose-600" />
-          </div>
+          {/* Andamento da conferência */}
+          <section className="rounded-2xl border border-border bg-card shadow-card p-5 sm:p-6 mb-5" aria-label="Andamento da conferência">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground">Conferidos</p>
+                <p className="mt-1 leading-none tnum"><span className="text-4xl sm:text-5xl font-bold text-primary">{checked}</span><span className="text-xl sm:text-2xl font-semibold text-muted-foreground"> de {s.expected}</span></p>
+              </div>
+              <p className="text-3xl sm:text-4xl font-bold tnum text-primary">{pct}%</p>
+            </div>
+            <div className="mt-5 flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={segments.map((g) => `${g.label}: ${g.n}`).join(', ')}>
+              {segments.filter((g) => g.key !== 'pending' && g.n > 0).map((g) => (
+                <div key={g.key} className={cn('h-full', TONE_SOLID[g.tone])} style={{ width: `${(g.n / s.expected) * 100}%` }} />
+              ))}
+            </div>
+            <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+              {segments.map((g) => (
+                <li key={g.key} className="flex items-start gap-2.5">
+                  <span className={cn('mt-2 h-2.5 w-2.5 shrink-0 rounded-full', TONE_SOLID[g.tone])} aria-hidden="true" />
+                  <span><span className="block text-2xl font-bold tnum leading-none">{g.n}</span><span className="block text-sm text-muted-foreground mt-1">{g.label}</span></span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           {busyLabel && (
-            <div className="rounded-xl border border-border bg-card p-6 text-center mb-4" role="status" aria-live="polite">
+            <div className="rounded-2xl border border-border bg-card shadow-card p-6 text-center mb-5" role="status" aria-live="polite">
               <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
-              <p className="font-medium mt-3">{busyLabel}</p>
-              <p className="text-sm text-muted-foreground mt-1">Não feche esta página.</p>
+              <p className="font-bold text-lg mt-3">{busyLabel}</p>
+              <p className="text-[15px] text-muted-foreground mt-1">Não feche esta página.</p>
             </div>
           )}
 
           {inventory.status === 'completed' && !busyLabel && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-900 p-5 mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
+            <div className={cn('rounded-2xl p-5 mb-5 flex flex-wrap items-center justify-between gap-4', TONES.green)}>
+              <div className="flex items-center gap-3.5">
+                <CheckCircle2 className="w-8 h-8 shrink-0" aria-hidden="true" />
                 <div>
-                  <p className="font-semibold">Inventário concluído</p>
-                  <p className="text-sm text-muted-foreground">
-                    Finalizado em {formatDateTime(inventory.finished_at)} · {s.found} encontrado{s.found === 1 ? '' : 's'}, {s.notFound} não encontrado{s.notFound === 1 ? '' : 's'}{s.misplaced ? `, ${s.misplaced} em unidade incorreta` : ''}
-                  </p>
+                  <p className="font-bold text-lg">Inventário concluído</p>
+                  <p className="text-[15px] opacity-90">Finalizado em {formatDateTime(inventory.finished_at)}</p>
                 </div>
               </div>
-              <Button variant="outline" onClick={() => setConfirm('reopen')}><RotateCcw className="w-4 h-4 mr-2" /> Reabrir inventário</Button>
+              <Button variant="outline" onClick={() => setConfirm('reopen')}><RotateCcw /> Reabrir inventário</Button>
             </div>
           )}
 
           {inventory.status === 'in_progress' && !scanning && !manual && !busyLabel && (
-            <div className="max-w-md mx-auto text-center py-6">
-              <button onClick={startScan} className="w-full py-8 rounded-2xl bg-primary text-primary-foreground font-semibold text-lg flex flex-col items-center gap-3 active:scale-[0.98] transition-transform">
-                <ScanLine className="w-10 h-10" /> Escanear patrimônio
-              </button>
-              <Button variant="outline" className="mt-4 w-full" onClick={() => setManual(true)}><Keyboard className="w-4 h-4 mr-2" /> Digitar código</Button>
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto] mb-5">
+              <Button size="lg" className="h-14 text-base" onClick={startScan}><ScanLine className="!size-6" /> Escanear patrimônio</Button>
+              <Button size="lg" variant="outline" className="h-14 text-base" onClick={() => setManual(true)}><Keyboard className="!size-5" /> Digitar código</Button>
             </div>
           )}
 
           {scanning && (
-            <div className="max-w-md mx-auto">
-              <div id="inv-qr-reader" className="w-full rounded-xl overflow-hidden bg-black aspect-[3/4]" />
-              <p className="text-xs text-muted-foreground text-center mt-2">Aponte para as etiquetas uma atrás da outra; a câmera continua aberta.</p>
-              <Button variant="outline" className="mt-3 w-full" onClick={stopScan}><XCircle className="w-4 h-4 mr-2" /> Parar câmera</Button>
+            <div className="max-w-md mx-auto mb-5">
+              <div id="inv-qr-reader" className="w-full rounded-2xl overflow-hidden bg-black aspect-[3/4]" />
+              <p className="text-sm text-muted-foreground text-center mt-3">Aponte para as etiquetas uma atrás da outra; a câmera continua aberta.</p>
+              <Button variant="outline" className="mt-3 w-full" onClick={stopScan}><XCircle /> Parar câmera</Button>
             </div>
           )}
 
           {manual && !scanning && inventory.status === 'in_progress' && (
-            <form onSubmit={handleManual} className="max-w-md mx-auto space-y-3 mb-4">
-              <Input value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="Ex: PAT-000127" autoFocus />
+            <form onSubmit={handleManual} className="max-w-md mx-auto space-y-3 mb-5 rounded-2xl border border-border bg-card shadow-card p-4">
+              <label htmlFor="manual-code" className="block text-sm font-semibold">Código do patrimônio</label>
+              <Input id="manual-code" value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="Ex: PAT-000127" autoFocus autoCapitalize="characters" />
               <div className="flex gap-2"><Button type="submit" className="flex-1">Conferir</Button><Button type="button" variant="outline" onClick={() => { setManual(false); setFeedback(null); }}>Fechar</Button></div>
             </form>
           )}
 
-          {loading && <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>}
+          {loading && <div className="text-center py-6"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>}
 
-          {feedback && !loading && (
-            <div className="max-w-md mx-auto mb-4 text-center">
-              {feedback.type === 'found' && (
-                <div className="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-900 rounded-xl p-5">
-                  <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                  <p className="font-semibold mt-2">Patrimônio encontrado</p>
-                  <p className="font-mono">{feedback.code}</p>
-                  <p className="text-muted-foreground">{feedback.asset?.name}</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
-                </div>
-              )}
-              {feedback.type === 'misplaced' && (
-                <div className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-900 rounded-xl p-5">
-                  <AlertTriangle className="w-12 h-12 text-amber-600 mx-auto" />
-                  <p className="font-semibold mt-2">{feedback.message || 'Unidade incorreta'}</p>
-                  <p className="font-mono">{feedback.code}</p>
-                  <p className="text-muted-foreground">{feedback.asset?.name}</p>
-                  <p className="text-sm text-muted-foreground">Cadastrado em: {feedback.asset?.location_name || '-'}</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
-                </div>
-              )}
-              {feedback.type === 'already' && (
-                <div className="border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-900 rounded-xl p-5">
-                  <CheckCircle2 className="w-12 h-12 text-blue-600 mx-auto" />
-                  <p className="font-semibold mt-2">Esse patrimônio já foi conferido.</p>
-                  <p className="font-mono">{feedback.code}</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
-                </div>
-              )}
-              {feedback.type === 'error' && (
-                <div className="border-rose-200 bg-rose-50 dark:bg-rose-900/20 dark:border-rose-900 rounded-xl p-5">
-                  <XCircle className="w-12 h-12 text-rose-600 mx-auto" />
-                  <p className="font-semibold mt-2">Não foi possível conferir agora</p>
-                  <p className="font-mono">{feedback.code}</p>
-                  <p className="text-sm text-muted-foreground">Verifique a conexão e tente de novo.</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
-                </div>
-              )}
-              {feedback.type === 'not_found' && (
-                <div className="border-rose-200 bg-rose-50 dark:bg-rose-900/20 dark:border-rose-900 rounded-xl p-5">
-                  <XCircle className="w-12 h-12 text-rose-600 mx-auto" />
-                  <p className="font-semibold mt-2">Patrimônio não encontrado</p>
-                  <p className="font-mono">{feedback.code}</p>
-                  <Button variant="outline" className="mt-4 w-full" onClick={() => setFeedback(null)}>OK</Button>
-                </div>
-              )}
-            </div>
-          )}
+          {feedback && !loading && (() => {
+            const f = FEEDBACK[feedback.type];
+            const Icon = f.icon;
+            return (
+              <div className={cn('max-w-md mx-auto mb-5 rounded-2xl p-5 text-center', TONES[f.tone])} role="status" aria-live="polite">
+                <Icon className="w-12 h-12 mx-auto" aria-hidden="true" />
+                <p className="font-bold text-lg mt-2">{feedback.type === 'misplaced' && feedback.message ? feedback.message : f.title}</p>
+                <p className="font-mono text-[15px] mt-1">{feedback.code}</p>
+                {feedback.asset?.name && <p className="mt-0.5">{feedback.asset.name}</p>}
+                {feedback.type === 'misplaced' && <p className="text-sm mt-0.5 opacity-90">Cadastrado em: {feedback.asset?.location_name || '-'}</p>}
+                {feedback.type === 'error' && <p className="text-sm mt-0.5 opacity-90">Verifique a conexão e tente de novo.</p>}
+                <Button variant="outline" className="mt-4 w-full bg-card" onClick={() => setFeedback(null)}>OK</Button>
+              </div>
+            );
+          })()}
 
-          <div className="flex flex-wrap gap-2 mt-4">
+          <div className="flex flex-wrap items-center gap-2">
             {inventory.status === 'in_progress' && (
-              <Button variant="outline" onClick={() => setConfirm('finish')} disabled={!!working}>{working === 'finish' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCheck className="w-4 h-4 mr-2" />} {working === 'finish' ? 'Finalizando…' : 'Finalizar inventário'}</Button>
+              <Button variant="outline" onClick={() => setConfirm('finish')} disabled={!!working}>{working === 'finish' ? <Loader2 className="animate-spin" /> : <CheckCheck />} {working === 'finish' ? 'Finalizando…' : 'Finalizar inventário'}</Button>
             )}
-            {canShare && (
-              <Button onClick={sharePdf} disabled={!!pdfWorking}>{pdfWorking === 'share' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Share2 className="w-4 h-4 mr-2" />} {pdfWorking === 'share' ? 'Gerando PDF…' : 'Enviar PDF'}</Button>
-            )}
-            <Button variant="outline" onClick={savePdf} disabled={!!pdfWorking}>{pdfWorking === 'save' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />} {pdfWorking === 'save' ? 'Gerando PDF…' : 'Baixar PDF'}</Button>
-            <Button variant="outline" onClick={exportCsv}><Download className="w-4 h-4 mr-2" /> Exportar CSV</Button>
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+              {canShare && (
+                <Button variant="outline" onClick={sharePdf} disabled={!!pdfWorking}>{pdfWorking === 'share' ? <Loader2 className="animate-spin" /> : <Share2 />} {pdfWorking === 'share' ? 'Gerando PDF…' : 'Enviar PDF'}</Button>
+              )}
+              <Button variant="outline" onClick={savePdf} disabled={!!pdfWorking}>{pdfWorking === 'save' ? <Loader2 className="animate-spin" /> : <FileText />} {pdfWorking === 'save' ? 'Gerando PDF…' : 'Baixar PDF'}</Button>
+              <Button variant="outline" onClick={exportCsv}><Download /> CSV</Button>
+            </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar número ou nome" className="pl-9" />
+          {/* Lista de itens */}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-[minmax(0,20rem)_13rem_auto] items-center gap-2">
+            <div className="relative">
+              <Search className="w-[18px] h-[18px] absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Número ou nome" aria-label="Buscar na lista" className="pl-10" />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filtrar por status" className="h-9 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="all">Todos os status</option>
-              {Object.entries(INV_ITEM_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-            <span className="text-xs text-muted-foreground">{visibleItems.length} de {items.length}</span>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger aria-label="Filtrar por status"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                {Object.entries(INV_ITEM_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground tnum">{visibleItems.length} de {items.length}</span>
           </div>
 
           {canMark && selected.size > 0 && (
-            <div className="mt-3 rounded-xl border border-border bg-card p-3 flex flex-wrap items-center gap-2 sticky top-2 z-10 shadow-sm">
-              <span className="text-sm font-medium mr-auto">{selected.size} selecionado{selected.size === 1 ? '' : 's'}</span>
+            <div className="fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 lg:sticky lg:inset-x-auto lg:bottom-auto lg:top-20 mt-3 rounded-2xl border border-primary/30 bg-card p-3 shadow-pop flex flex-wrap items-center gap-2">
+              <span className="text-[15px] font-bold mr-auto pl-1">{selected.size} selecionado{selected.size === 1 ? '' : 's'}</span>
               {markableCount > 0 && (
                 <Button size="sm" onClick={() => markSelected('found')} disabled={marking}>
-                  {marking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />} Marcar {markableCount} como encontrado{markableCount === 1 ? '' : 's'}
+                  {marking ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} Marcar {markableCount} como encontrado{markableCount === 1 ? '' : 's'}
                 </Button>
               )}
               {unmarkableCount > 0 && (
-                <Button size="sm" variant="outline" onClick={() => markSelected('pending')} disabled={marking}><Undo2 className="w-4 h-4 mr-2" /> Desmarcar {unmarkableCount}</Button>
+                <Button size="sm" variant="outline" onClick={() => markSelected('pending')} disabled={marking}><Undo2 /> Desmarcar {unmarkableCount}</Button>
               )}
-              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={marking}>Limpar seleção</Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={marking}>Limpar</Button>
             </div>
           )}
 
-          <div className="mt-3 rounded-xl border border-border bg-card overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-muted-foreground"><tr>
-                {canMark && (
-                  <th className="w-10 px-4 py-2">
-                    <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAllVisible} disabled={visibleItems.length === 0} aria-label="Selecionar todos os itens da lista" />
-                  </th>
-                )}
-                <th className="text-left font-medium px-4 py-2">Número</th>
-                <th className="text-left font-medium px-4 py-2">Nome</th>
-                <th className="text-left font-medium px-4 py-2 hidden sm:table-cell">Esperado</th>
-                <th className="text-left font-medium px-4 py-2 hidden sm:table-cell">Encontrado</th>
-                <th className="text-left font-medium px-4 py-2">Status</th>
-              </tr></thead>
+          {/* Computador: tabela */}
+          <div className="hidden md:block table-card mt-3">
+            <table>
+              <thead>
+                <tr>
+                  {canMark && (
+                    <th className="w-12">
+                      <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAllVisible} disabled={visibleItems.length === 0} aria-label="Selecionar todos os itens da lista" />
+                    </th>
+                  )}
+                  <th>Número</th>
+                  <th>Nome</th>
+                  <th>Esperado</th>
+                  <th className="hidden xl:table-cell">Encontrado</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
               <tbody>
                 {visibleItems.map((it) => (
-                  <tr key={it.id} className={`border-t border-border ${canMark ? 'cursor-pointer hover:bg-muted/40' : ''} ${selected.has(it.id) ? 'bg-muted/60' : ''}`} onClick={canMark ? () => toggleOne(it.id) : undefined}>
+                  <tr key={it.id} className={cn(canMark && 'row-link', selected.has(it.id) && 'bg-accent/60')} onClick={canMark ? () => toggleOne(it.id) : undefined}>
                     {canMark && (
-                      <td className="w-10 px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <Checkbox checked={selected.has(it.id)} onCheckedChange={() => toggleOne(it.id)} aria-label={`Selecionar ${it.asset_number}`} />
                       </td>
                     )}
-                    <td className="px-4 py-2 font-mono text-xs">{it.asset_number}</td>
-                    <td className="px-4 py-2 truncate max-w-[160px]">{it.asset_name}</td>
-                    <td className="px-4 py-2 hidden sm:table-cell text-muted-foreground">{it.expected_location_name || '-'}</td>
-                    <td className="px-4 py-2 hidden sm:table-cell text-muted-foreground">{it.found_location_name || '-'}</td>
-                    <td className="px-4 py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${INV_ITEM_STYLES[it.status]}`}>{INV_ITEM_LABELS[it.status]}</span></td>
+                    <td><span className="asset-code">{it.asset_number}</span></td>
+                    <td className="font-semibold">{it.asset_name}</td>
+                    <td className="text-muted-foreground">{it.expected_location_name || '-'}</td>
+                    <td className="hidden xl:table-cell text-muted-foreground">{it.found_location_name || '-'}</td>
+                    <td><StatusPill tone={INV_ITEM_TONES[it.status]}>{INV_ITEM_LABELS[it.status]}</StatusPill></td>
                   </tr>
                 ))}
                 {visibleItems.length === 0 && (
-                  <tr><td colSpan={canMark ? 6 : 5} className="px-4 py-8 text-center text-muted-foreground">Nenhum item encontrado com esse filtro.</td></tr>
+                  <tr><td colSpan={canMark ? 6 : 5} className="py-10 text-center text-muted-foreground">Nenhum item encontrado com esse filtro.</td></tr>
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Celular: cartões */}
+          <div className="md:hidden mt-3">
+            {canMark && visibleItems.length > 0 && (
+              <label className="flex items-center gap-3 px-1 pb-3 text-[15px] font-semibold cursor-pointer">
+                <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAllVisible} aria-label="Selecionar todos os itens da lista" />
+                Selecionar todos ({visibleItems.length})
+              </label>
+            )}
+            <ul className="space-y-2.5">
+              {visibleItems.map((it) => (
+                <li key={it.id}>
+                  <div
+                    role={canMark ? 'button' : undefined}
+                    tabIndex={canMark ? 0 : undefined}
+                    onClick={canMark ? () => toggleOne(it.id) : undefined}
+                    onKeyDown={canMark ? (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleOne(it.id); } } : undefined}
+                    className={cn('flex items-start gap-3.5 rounded-2xl border bg-card p-3.5 shadow-card', selected.has(it.id) ? 'border-primary/50 bg-accent/60' : 'border-border')}
+                  >
+                    {canMark && <Checkbox className="mt-0.5" checked={selected.has(it.id)} onCheckedChange={() => toggleOne(it.id)} onClick={(e) => e.stopPropagation()} aria-label={`Selecionar ${it.asset_number}`} />}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-bold leading-snug">{it.asset_name}</p>
+                        <StatusPill tone={INV_ITEM_TONES[it.status]} className="mt-0.5">{INV_ITEM_LABELS[it.status]}</StatusPill>
+                      </div>
+                      <p className="asset-code mt-0.5">{it.asset_number}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{it.expected_location_name || '-'}{it.found_location_name && it.found_location_name !== it.expected_location_name ? ` → encontrado em ${it.found_location_name}` : ''}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {visibleItems.length === 0 && <p className="py-10 text-center text-muted-foreground">Nenhum item encontrado com esse filtro.</p>}
           </div>
         </>
       )}
@@ -509,14 +545,5 @@ export default function InventarioDetail() {
         onConfirm={reopenInventory}
       />
     </Layout>
-  );
-}
-
-function Stat({ label, value, color = 'text-foreground' }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
-    </div>
   );
 }

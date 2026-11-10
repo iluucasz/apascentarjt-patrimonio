@@ -107,14 +107,14 @@ export default function EditarPatrimonio() {
         </div>
       )}
       <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="rounded-2xl border border-border bg-card shadow-card p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={original.batch_id ? 'md:col-span-2' : ''}><Label>Nome do patrimônio *</Label><Input value={form.name} onChange={(e) => set('name', e.target.value)} required /></div>
             {!original.batch_id && (
               <div>
                 <Label>Quantidade</Label>
                 <Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-                {Number(quantity) > 1 && <p className="text-xs text-muted-foreground mt-1">Serão criados mais {Math.floor(Number(quantity)) - 1} item(ns) iguais a este, cada um com número e QR Code próprios, formando um lote.</p>}
+                {Number(quantity) > 1 && <p className="text-sm text-muted-foreground mt-1.5">Serão criados mais {Math.floor(Number(quantity)) - 1} item(ns) iguais a este, cada um com número e QR Code próprios, formando um lote.</p>}
               </div>
             )}
             <div><Label>Categoria</Label><Select value={form.category_id} onValueChange={(v) => set('category_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
@@ -138,12 +138,12 @@ export default function EditarPatrimonio() {
             <Label>Foto</Label>
             <div className="flex items-center gap-4">
               {form.photo_url ? <Image src={form.photo_url} className="w-24 h-24 rounded-lg object-cover" fittingType="fill" /> : <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center"><Camera className="w-8 h-8 text-muted-foreground" /></div>}
-              <div><PhotoPicker onChange={handlePhoto} disabled={uploading} />{uploading && <p className="text-xs text-muted-foreground mt-1">Enviando...</p>}</div>
+              <div><PhotoPicker onChange={handlePhoto} disabled={uploading} />{uploading && <p className="text-sm text-muted-foreground mt-1.5">Enviando...</p>}</div>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button type="submit" disabled={saving || uploading}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}{saving ? 'Salvando...' : 'Salvar'}</Button>
+          <Button type="submit" disabled={saving || uploading}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save />}{saving ? 'Salvando...' : 'Salvar'}</Button>
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
         </div>
       </form>

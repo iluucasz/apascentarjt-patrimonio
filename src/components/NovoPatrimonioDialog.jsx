@@ -124,16 +124,16 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
         <DialogContent className="max-w-lg">
           <div className="text-center">
             <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+              <CheckCircle2 className="w-8 h-8 text-emerald-700" />
             </div>
             <h2 className="text-xl font-bold">{created.count} patrimônios cadastrados com sucesso</h2>
             <p className="text-muted-foreground mt-1">{created.name}</p>
             <p className="font-mono text-lg font-bold mt-3 text-primary">{created.first_asset_number} — {created.last_asset_number}</p>
-            <p className="text-xs text-muted-foreground mt-1">Cada item tem seu próprio número e QR Code, prontos para imprimir.</p>
+            <p className="text-sm text-muted-foreground mt-1.5">Cada item tem seu próprio número e QR Code, prontos para imprimir.</p>
             <div className="flex flex-col sm:flex-row gap-2 mt-6">
               <Button className="flex-1" onClick={() => { handleOpenChange(false); navigate(`/patrimonios/lote/${created.batch_id}`); }}>Ver lote</Button>
-              <Button variant="outline" className="flex-1" onClick={() => { handleOpenChange(false); navigate(`/etiquetas?batch_id=${created.batch_id}`); }}><Printer className="w-4 h-4 mr-2" /> Imprimir etiquetas</Button>
-              <Button variant="outline" className="flex-1" onClick={() => { setCreated(null); resetAll(); }}><PackagePlus className="w-4 h-4 mr-2" /> Cadastrar outro</Button>
+              <Button variant="outline" className="flex-1" onClick={() => { handleOpenChange(false); navigate(`/etiquetas?batch_id=${created.batch_id}`); }}><Printer /> Imprimir etiquetas</Button>
+              <Button variant="outline" className="flex-1" onClick={() => { setCreated(null); resetAll(); }}><PackagePlus /> Cadastrar outro</Button>
             </div>
           </div>
         </DialogContent>
@@ -149,7 +149,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
         <DialogContent className="max-w-lg">
           <div className="text-center">
             <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+              <CheckCircle2 className="w-8 h-8 text-emerald-700" />
             </div>
             <h2 className="text-xl font-bold">Patrimônio cadastrado com sucesso</h2>
             <p className="font-mono text-2xl font-bold mt-3 text-primary">{created.asset_number}</p>
@@ -157,17 +157,17 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
             <div className="flex justify-center gap-6 mt-6 py-4 border-y border-border">
               <div className="text-center">
                 <AssetQRCode value={url} size={120} />
-                <p className="text-xs text-muted-foreground mt-1">QR Code</p>
+                <p className="text-sm text-muted-foreground mt-1.5">QR Code</p>
               </div>
               <div className="text-center flex flex-col justify-center">
                 <AssetBarcode value={created.asset_number} height={50} fontSize={12} />
-                <p className="text-xs text-muted-foreground mt-1">Code 128</p>
+                <p className="text-sm text-muted-foreground mt-1.5">Code 128</p>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 mt-6">
               <Button className="flex-1" onClick={() => { handleOpenChange(false); navigate(`/p/${created.asset_number}`); }}>Ver patrimônio</Button>
-              <Button variant="outline" className="flex-1" onClick={() => { handleOpenChange(false); navigate(`/etiquetas?ids=${created.id}`); }}><Printer className="w-4 h-4 mr-2" /> Imprimir etiqueta</Button>
-              <Button variant="outline" className="flex-1" onClick={() => { setCreated(null); resetAll(); }}><PackagePlus className="w-4 h-4 mr-2" /> Cadastrar outro</Button>
+              <Button variant="outline" className="flex-1" onClick={() => { handleOpenChange(false); navigate(`/etiquetas?ids=${created.id}`); }}><Printer /> Imprimir etiqueta</Button>
+              <Button variant="outline" className="flex-1" onClick={() => { setCreated(null); resetAll(); }}><PackagePlus /> Cadastrar outro</Button>
             </div>
           </div>
         </DialogContent>
@@ -177,7 +177,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Novo patrimônio</DialogTitle>
           <DialogDescription>
@@ -188,8 +188,8 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground flex items-center gap-2">
-              <span className="font-mono font-semibold text-foreground">Número{isMulti ? 's' : ''} patrimonia{isMulti ? 'is' : 'l'}:</span>
+            <div className="rounded-xl bg-accent/60 p-3.5 text-[15px] text-muted-foreground flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="font-semibold text-foreground">Número{isMulti ? 's' : ''} patrimonia{isMulti ? 'is' : 'l'}:</span>
               {isMulti
                 ? `Gerados automaticamente, ${qty} no total (a partir de ${settings?.asset_prefix || 'PAT'}-${String(settings?.next_asset_sequence || 1).padStart(settings?.digit_count || 6, '0')})`
                 : `Gerado automaticamente (${settings?.asset_prefix || 'PAT'}-${String(settings?.next_asset_sequence || 1).padStart(settings?.digit_count || 6, '0')})`}
@@ -217,7 +217,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
                   <SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Local</Label><Input value={form.location_detail} onChange={(e) => set('location_detail', e.target.value)} placeholder="Ex: Salão, armário 2" /><p className="text-xs text-muted-foreground mt-1">Onde o item fica dentro da unidade.</p></div>
+              <div><Label>Local</Label><Input value={form.location_detail} onChange={(e) => set('location_detail', e.target.value)} placeholder="Ex: Salão, armário 2" /><p className="text-sm text-muted-foreground mt-1.5">Onde o item fica dentro da unidade.</p></div>
               <div className="md:col-span-2">
                 <Label>Descrição</Label>
                 <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} />
@@ -256,7 +256,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
                 )}
                 <div>
                   <PhotoPicker onChange={handlePhoto} disabled={uploading} />
-                  {uploading && <p className="text-xs text-muted-foreground mt-1">Enviando...</p>}
+                  {uploading && <p className="text-sm text-muted-foreground mt-1.5">Enviando...</p>}
                 </div>
               </div>
             </div>
@@ -270,7 +270,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
                   <>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">A soma das variantes precisa fechar com a quantidade informada</span>
-                      <span className={`text-xs font-semibold ${variantSum === qty ? 'text-emerald-600' : 'text-destructive'}`}>Soma: {variantSum} / {qty}</span>
+                      <span className={`text-xs font-semibold ${variantSum === qty ? 'text-emerald-700' : 'text-destructive'}`}>Soma: {variantSum} / {qty}</span>
                     </div>
                     <div className="space-y-2">
                       {variants.map((v, idx) => (
@@ -283,7 +283,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
                         </div>
                       ))}
                     </div>
-                    <Button type="button" size="sm" variant="outline" onClick={addVariant}><Plus className="w-4 h-4 mr-1" /> Adicionar variante</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={addVariant}><Plus /> Adicionar variante</Button>
                   </>
                 ) : (
                   <p className="text-xs text-muted-foreground">Serão criados {qty} itens idênticos, cada um com número e QR Code próprios.</p>
@@ -293,7 +293,7 @@ export default function NovoPatrimonioDialog({ open, onOpenChange, onCreated }) 
           </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={saving || uploading || (isMulti && useVariants && variantSum !== qty)}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save />}
               {saving ? 'Salvando...' : isMulti ? `Cadastrar ${qty} patrimônios` : 'Salvar patrimônio'}
             </Button>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>

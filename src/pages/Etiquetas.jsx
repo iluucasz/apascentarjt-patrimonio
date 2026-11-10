@@ -8,12 +8,13 @@ import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { QrCode, Printer, CheckSquare, Square, Maximize2, Search, Layers, ChevronDown, ChevronRight } from 'lucide-react';
+import { QrCode, Printer, Maximize2, Search, Layers, ChevronDown, ChevronRight } from 'lucide-react';
 import AssetQRCode from '@/components/AssetQRCode';
 import AssetBarcode from '@/components/AssetBarcode';
 
@@ -138,15 +139,15 @@ export default function Etiquetas() {
       </div>
 
       <PageHeader title="Etiquetas" description="Selecione patrimônios e gere etiquetas para impressão">
-        <Button onClick={handlePrint} disabled={selectedAssets.length === 0}><Printer className="w-4 h-4 mr-2" /> Imprimir ({selectedAssets.length})</Button>
+        <Button onClick={handlePrint} disabled={selectedAssets.length === 0}><Printer /> Imprimir ({selectedAssets.length})</Button>
       </PageHeader>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-border bg-card shadow-card p-4">
             <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, nome ou lote..." className="pl-9" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground" aria-hidden="true" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, nome ou lote" aria-label="Buscar patrimônio" className="pl-10" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div><Label>De</Label><Input value={fromNum} onChange={(e) => setFromNum(e.target.value.toUpperCase())} placeholder="PAT-000001" /></div>
@@ -154,7 +155,7 @@ export default function Etiquetas() {
               <div><Label>Categoria</Label><Select value={filterCat} onValueChange={setFilterCat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todas</SelectItem>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
               <div><Label>Unidade</Label><Select value={filterLoc} onValueChange={setFilterLoc}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-4">
               <Button size="sm" variant="outline" onClick={applyRange}>Selecionar filtrados</Button>
               <Button size="sm" variant="outline" onClick={selectAll}>Selecionar todos</Button>
               <Button size="sm" variant="outline" onClick={clearAll}>Limpar</Button>
@@ -162,43 +163,37 @@ export default function Etiquetas() {
           </div>
 
           {rows.length === 0 ? (
-            <EmptyState icon={QrCode} title="Nenhum patrimônio" />
+            <EmptyState icon={QrCode} title="Nenhum patrimônio" description="Cadastre patrimônios para poder imprimir as etiquetas." />
           ) : (
-            <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border">
+            <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden divide-y divide-border">
               {rows.map((r) => r.isBatch ? (
                 <div key={r.id} className="divide-y divide-border">
-                  <div className="flex items-center gap-2 p-3 bg-muted/30">
-                    <button onClick={() => toggleBatch(r)} className="text-primary">
-                      {r.units.every((u) => selected.has(u.id)) ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-muted-foreground" />}
+                  <div className="flex items-center gap-3 p-3 bg-muted/40">
+                    <Checkbox checked={r.units.every((u) => selected.has(u.id))} onCheckedChange={() => toggleBatch(r)} aria-label={`Selecionar o lote ${r.name}`} />
+                    <button type="button" onClick={() => toggleExpand(r.batch_id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent" aria-expanded={expanded.has(r.batch_id)} aria-label={expanded.has(r.batch_id) ? 'Recolher lote' : 'Expandir lote'}>
+                      {expanded.has(r.batch_id) ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </button>
-                    <button type="button" onClick={() => toggleExpand(r.batch_id)} className="text-muted-foreground shrink-0">
-                      {expanded.has(r.batch_id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0"><Layers className="w-3.5 h-3.5" /> Lote</span>
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground shrink-0"><Layers className="w-4 h-4" aria-hidden="true" /> Lote</span>
                     <span className="text-sm flex-1 truncate">
                       <span className="font-medium">{r.name}</span>{' '}
-                      <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5">{r.units.length} itens</span>
+                      <span className="text-xs font-semibold rounded-full bg-accent text-primary px-2 py-0.5">{r.units.length} itens</span>
                     </span>
-                    <span className="text-xs text-muted-foreground hidden sm:block">{r.category_name} · {r.location_name}</span>
+                    <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[16rem]">{r.category_name} · {r.location_name}</span>
                   </div>
                   {expanded.has(r.batch_id) && r.units.map((u) => (
                     <div key={u.id} className="flex items-center gap-3 p-3 pl-12">
-                      <button onClick={() => toggle(u.id)} className="text-primary">
-                        {selected.has(u.id) ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-muted-foreground" />}
-                      </button>
-                      <span className="font-mono text-xs w-24">{u.asset_number}</span>
-                      <span className="text-sm flex-1 truncate">{u.variant || '-'}</span>
+                      <Checkbox checked={selected.has(u.id)} onCheckedChange={() => toggle(u.id)} aria-label={`Selecionar ${u.asset_number}`} />
+                      <span className="asset-code w-28 shrink-0">{u.asset_number}</span>
+                      <span className="text-[15px] flex-1 truncate">{u.variant || '-'}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div key={r.id} className="flex items-center gap-3 p-3">
-                  <button onClick={() => toggle(r.id)} className="text-primary">
-                    {selected.has(r.id) ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-muted-foreground" />}
-                  </button>
-                  <span className="font-mono text-xs w-24">{r.asset_number}</span>
-                  <span className="text-sm flex-1 truncate">{r.name}{r.variant && <span className="text-muted-foreground"> · {r.variant}</span>}</span>
-                  <span className="text-xs text-muted-foreground hidden sm:block">{r.category_name} · {r.location_name}</span>
+                <div key={r.id} className="flex items-center gap-3 p-3 hover:bg-accent/30">
+                  <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={`Selecionar ${r.asset_number}`} />
+                  <span className="asset-code w-28 shrink-0">{r.asset_number}</span>
+                  <span className="text-[15px] font-medium flex-1 truncate">{r.name}{r.variant && <span className="text-muted-foreground"> · {r.variant}</span>}</span>
+                  <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[16rem]">{r.category_name} · {r.location_name}</span>
                 </div>
               ))}
             </div>
@@ -206,25 +201,25 @@ export default function Etiquetas() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="font-semibold mb-3">Configuração da etiqueta</h3>
-            <div className="space-y-3">
+          <div className="rounded-2xl border border-border bg-card shadow-card p-4">
+            <h3 className="text-lg font-bold mb-3">Configuração da etiqueta</h3>
+            <div className="space-y-4">
               <div><Label>Tamanho</Label><Select value={size} onValueChange={setSize}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50x25">50x25 mm</SelectItem><SelectItem value="50x30">50x30 mm</SelectItem><SelectItem value="60x30">60x30 mm</SelectItem><SelectItem value="70x30">70x30 mm</SelectItem></SelectContent></Select></div>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} /> Logo</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showQR} onChange={(e) => setShowQR(e.target.checked)} /> QR Code</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showBarcode} onChange={(e) => setShowBarcode(e.target.checked)} /> Código de barras</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showNumber} onChange={(e) => setShowNumber(e.target.checked)} /> Número</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Nome do patrimônio</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showVariant} onChange={(e) => setShowVariant(e.target.checked)} /> Variante</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showCategory} onChange={(e) => setShowCategory(e.target.checked)} /> Categoria</label>
+              <label className="flex items-center gap-2.5 text-[15px] font-medium cursor-pointer"><input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} /> Logo</label>
+              <label className="flex items-center gap-2.5 text-[15px] font-medium cursor-pointer"><input type="checkbox" checked={showQR} onChange={(e) => setShowQR(e.target.checked)} /> QR Code</label>
+              <label className="flex items-center gap-2.5 text-[15px] font-medium cursor-pointer"><input type="checkbox" checked={showBarcode} onChange={(e) => setShowBarcode(e.target.checked)} /> Código de barras</label>
+              <label className="flex items-center gap-2.5 text-[15px] font-medium cursor-pointer"><input type="checkbox" checked={showNumber} onChange={(e) => setShowNumber(e.target.checked)} /> Número</label>
+              <label className="flex items-center gap-2.5 text-[15px] font-medium cursor-pointer"><input type="checkbox" checked={showName} onChange={(e) => setShowName(e.target.checked)} /> Nome do patrimônio</label>
+              <label className="flex items-center gap-2.5 text-[15px] font-medium cursor-pointer"><input type="checkbox" checked={showVariant} onChange={(e) => setShowVariant(e.target.checked)} /> Variante</label>
+              <label className="flex items-center gap-2.5 text-[15px] font-medium cursor-pointer"><input type="checkbox" checked={showCategory} onChange={(e) => setShowCategory(e.target.checked)} /> Categoria</label>
             </div>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-2xl border border-border bg-card shadow-card p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Preview</h3>
+              <h3 className="text-lg font-bold">Preview</h3>
               {selectedAssets[0] && (
                 <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
-                  <Maximize2 className="w-4 h-4 mr-1" /> Ampliar
+                  <Maximize2 /> Ampliar
                 </Button>
               )}
             </div>

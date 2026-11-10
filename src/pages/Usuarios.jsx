@@ -108,83 +108,113 @@ export default function Usuarios() {
     return <Layout><EmptyState icon={Users} title="Acesso restrito" description="Apenas administradores podem gerenciar usuários." /></Layout>;
   }
 
+  const roleSelect = (u, full = false) => (
+    <Select value={u.role || 'user'} onValueChange={(r) => changeRole(u, r)}>
+      <SelectTrigger className={full ? 'w-full' : 'w-48'} aria-label={`Perfil de ${u.full_name || u.email}`}><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
+        <SelectItem value="manager">{ROLE_LABELS.manager}</SelectItem>
+        <SelectItem value="user">{ROLE_LABELS.viewer}</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  const unitsCell = (u) => (
+    u.role === 'admin' ? (
+      <span className="text-muted-foreground">{accessLabel(u)}</span>
+    ) : (
+      <button onClick={() => openAccess(u)} className="inline-flex items-center gap-2 rounded-lg -ml-2 px-2 py-2 hover:bg-accent text-left" title="Definir unidades que este usuário pode ver">
+        <MapPin className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+        <span className="truncate max-w-[220px] font-medium">{accessLabel(u)}</span>
+      </button>
+    )
+  );
+
+  const deleteCell = (u) => (
+    u.id === user.id ? (
+      <span className="text-sm text-muted-foreground">Você</span>
+    ) : (
+      <button onClick={() => setDeleteTarget(u)} className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Excluir usuário" aria-label={`Excluir ${u.full_name || u.email}`}>
+        <Trash2 className="w-[18px] h-[18px]" />
+      </button>
+    )
+  );
+
   return (
     <Layout>
       <PageHeader title="Usuários" description="Gerencie quem acessa o sistema">
-        <Button onClick={() => setOpen(true)}><UserPlus className="w-4 h-4 mr-2" /> Novo usuário</Button>
+        <Button onClick={() => setOpen(true)}><UserPlus /> Novo usuário</Button>
       </PageHeader>
       {users === null ? (
-        <div className="space-y-2">{Array.from({length:4}).map((_,i)=><div key={i} className="h-14 rounded bg-muted animate-pulse" />)}</div>
+        <div className="space-y-3">{Array.from({length:4}).map((_,i)=><div key={i} className="h-20 rounded-2xl bg-muted animate-pulse" />)}</div>
       ) : users.length === 0 ? (
-        <EmptyState icon={Users} title="Nenhum usuário" />
+        <EmptyState icon={Users} title="Nenhum usuário" description="Crie o acesso de quem vai cadastrar e conferir o patrimônio." />
       ) : (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-muted-foreground"><tr>
-              <th className="text-left font-medium px-4 py-3">Nome</th>
-              <th className="text-left font-medium px-4 py-3">E-mail</th>
-              <th className="text-left font-medium px-4 py-3">Perfil</th>
-              <th className="text-left font-medium px-4 py-3">Unidades</th>
-              <th className="text-left font-medium px-4 py-3 hidden sm:table-cell">Cadastro</th>
-              <th className="text-right font-medium px-4 py-3">Ações</th>
-            </tr></thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-t border-border">
-                  <td className="px-4 py-3 font-medium">{u.full_name || '-'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
-                  <td className="px-4 py-3">
-                    <Select value={u.role || 'user'} onValueChange={(r) => changeRole(u, r)}>
-                      <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
-                        <SelectItem value="manager">{ROLE_LABELS.manager}</SelectItem>
-                        <SelectItem value="user">{ROLE_LABELS.viewer}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="px-4 py-3">
-                    {u.role === 'admin' ? (
-                      <span className="text-muted-foreground">{accessLabel(u)}</span>
-                    ) : (
-                      <button onClick={() => openAccess(u)} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-accent text-left" title="Definir unidades que este usuário pode ver">
-                        <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate max-w-[180px]">{accessLabel(u)}</span>
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">{formatDate(u.created_date)}</td>
-                  <td className="px-4 py-3 text-right">
-                    {u.id === user.id ? (
-                      <span className="text-xs text-muted-foreground">Você</span>
-                    ) : (
-                      <button onClick={() => setDeleteTarget(u)} className="p-1.5 rounded hover:bg-accent text-rose-600" title="Excluir usuário">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
+        <>
+          {/* Computador: tabela */}
+          <div className="hidden xl:block table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Perfil</th>
+                  <th>Unidades</th>
+                  <th className="hidden xl:table-cell">Cadastro</th>
+                  <th className="text-right"><span className="sr-only">Ações</span></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td className="font-semibold">{u.full_name || '-'}</td>
+                    <td className="text-muted-foreground">{u.email}</td>
+                    <td>{roleSelect(u)}</td>
+                    <td>{unitsCell(u)}</td>
+                    <td className="hidden xl:table-cell text-muted-foreground tnum">{formatDate(u.created_date)}</td>
+                    <td className="text-right">{deleteCell(u)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Celular: cartões */}
+          <ul className="xl:hidden grid gap-3 md:grid-cols-2">
+            {users.map((u) => (
+              <li key={u.id} className="rounded-2xl border border-border bg-card shadow-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-base leading-snug">{u.full_name || '-'}</p>
+                    <p className="text-sm text-muted-foreground break-all">{u.email}</p>
+                  </div>
+                  {deleteCell(u)}
+                </div>
+                <div className="mt-3 space-y-2.5">
+                  {roleSelect(u, true)}
+                  <div className="text-sm">{unitsCell(u)}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div><Label>E-mail *</Label><Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@exemplo.com" /></div>
             <div><Label>Senha *</Label><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" /></div>
             <div><Label>Perfil</Label><Select value={newRole} onValueChange={setNewRole}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="user">Leitor / Inventariante</SelectItem><SelectItem value="manager">Gestor</SelectItem><SelectItem value="admin">Administrador</SelectItem></SelectContent></Select></div>
             {newRole !== 'admin' && (
               <div>
                 <Label>Unidades que pode ver</Label>
-                <p className="text-xs text-muted-foreground mb-1.5">Deixe tudo desmarcado para ver todas as unidades.</p>
+                <p className="text-sm text-muted-foreground mb-2">Deixe tudo desmarcado para ver todas as unidades.</p>
                 <LocationPicker locations={locations} value={newAllowed} onChange={setNewAllowed} />
               </div>
             )}
-            <p className="text-xs text-muted-foreground">Não há envio de e-mail: compartilhe essa senha diretamente com a pessoa.</p>
+            <p className="text-sm text-muted-foreground">Não há envio de e-mail: compartilhe essa senha diretamente com a pessoa.</p>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={createUser} disabled={creating}>{creating ? 'Criando...' : 'Criar usuário'}</Button></DialogFooter>
         </DialogContent>

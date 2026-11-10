@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight } from 'lucide-react';
 import { formatDateTime, MOVEMENT_LABELS } from '@/lib/format';
 
 export default function Movimentacoes() {
@@ -18,26 +18,30 @@ export default function Movimentacoes() {
 
   return (
     <Layout>
-      <PageHeader title="Movimentações" description="Histórico completo de movimentações de patrimônios" />
+      <PageHeader title="Movimentações" description="Tudo que mudou de unidade, empréstimo ou devolução" />
       {items === null ? (
-        <div className="space-y-2">{Array.from({length:6}).map((_,i)=><div key={i} className="h-14 rounded bg-muted animate-pulse" />)}</div>
+        <div className="space-y-3">{Array.from({length:6}).map((_,i)=><div key={i} className="h-20 rounded-2xl bg-muted animate-pulse" />)}</div>
       ) : items.length === 0 ? (
-        <EmptyState icon={ArrowLeftRight} title="Nenhuma movimentação registrada" />
+        <EmptyState icon={ArrowLeftRight} title="Nenhuma movimentação registrada" description="Quando um patrimônio mudar de unidade, o histórico aparece aqui." />
       ) : (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <ul className="rounded-2xl border border-border bg-card shadow-card divide-y divide-border overflow-hidden">
           {items.map((m) => (
-            <Link key={m.id} to={`/p/${m.asset_number}`} className="flex items-center justify-between gap-3 p-4 border-b border-border last:border-0 hover:bg-accent/30">
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate"><span className="font-mono">{m.asset_number}</span> · {m.asset_name}</p>
-                <p className="text-xs text-muted-foreground">{MOVEMENT_LABELS[m.movement_type]}: {m.from_location_name || '-'} → {m.to_location_name || '-'}</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-xs text-muted-foreground">{formatDateTime(m.created_date)}</p>
-                <p className="text-xs text-muted-foreground">Por {m.moved_by_name || '-'}</p>
-              </div>
-            </Link>
+            <li key={m.id}>
+              <Link to={`/p/${m.asset_number}`} className="flex items-start justify-between gap-4 p-4 sm:px-5 hover:bg-accent/40 transition-colors">
+                <div className="min-w-0">
+                  <p className="font-bold leading-snug">{m.asset_name} <span className="asset-code ml-1">{m.asset_number}</span></p>
+                  <p className="text-[15px] text-muted-foreground mt-1">
+                    <span className="font-semibold text-foreground">{MOVEMENT_LABELS[m.movement_type]}</span> · {m.from_location_name || '-'} <ArrowRight className="inline w-3.5 h-3.5 -mt-0.5 mx-0.5" aria-hidden="true" /> <span className="text-foreground">{m.to_location_name || '-'}</span>
+                  </p>
+                </div>
+                <div className="text-right shrink-0 text-sm text-muted-foreground">
+                  <p className="tnum">{formatDateTime(m.created_date)}</p>
+                  <p>Por {m.moved_by_name || '-'}</p>
+                </div>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </Layout>
   );

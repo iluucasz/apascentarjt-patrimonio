@@ -34,6 +34,45 @@ export function formatDateTime(value) {
   });
 }
 
+// Paleta semântica única do app: fundo suave + texto escuro (contraste AA) + ponto.
+// Todo status/condição usa um destes tons, para as cores combinarem entre telas.
+export const TONES = {
+  green: 'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-700/20 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-400/25',
+  teal: 'bg-teal-50 text-teal-800 ring-1 ring-inset ring-teal-700/20 dark:bg-teal-950/60 dark:text-teal-300 dark:ring-teal-400/25',
+  blue: 'bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-700/20 dark:bg-sky-950/60 dark:text-sky-300 dark:ring-sky-400/25',
+  amber: 'bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-700/25 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-400/25',
+  orange: 'bg-orange-50 text-orange-900 ring-1 ring-inset ring-orange-700/25 dark:bg-orange-950/60 dark:text-orange-300 dark:ring-orange-400/25',
+  red: 'bg-red-50 text-red-800 ring-1 ring-inset ring-red-700/20 dark:bg-red-950/60 dark:text-red-300 dark:ring-red-400/25',
+  slate: 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/20 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-500/30',
+  dark: 'bg-zinc-200 text-zinc-800 ring-1 ring-inset ring-zinc-600/25 dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-500/30',
+};
+
+// Cor sólida de cada tom (pontos, barras, números de destaque).
+export const TONE_SOLID = {
+  green: 'bg-emerald-600',
+  teal: 'bg-teal-600',
+  blue: 'bg-sky-600',
+  amber: 'bg-amber-500',
+  orange: 'bg-orange-500',
+  red: 'bg-red-600',
+  slate: 'bg-slate-400',
+  dark: 'bg-zinc-600',
+};
+
+// Texto colorido legível sobre fundo claro (números de destaque).
+export const TONE_TEXT = {
+  green: 'text-emerald-700',
+  teal: 'text-teal-700',
+  blue: 'text-sky-700',
+  amber: 'text-amber-700',
+  orange: 'text-orange-700',
+  red: 'text-red-700',
+  slate: 'text-slate-600',
+  dark: 'text-zinc-700',
+};
+
+const toneMap = (m) => Object.fromEntries(Object.entries(m).map(([k, t]) => [k, TONES[t]]));
+
 export const STATUS_LABELS = {
   active: 'Ativo',
   maintenance: 'Manutenção',
@@ -43,14 +82,8 @@ export const STATUS_LABELS = {
   lost: 'Perdido'
 };
 
-export const STATUS_STYLES = {
-  active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  maintenance: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  loaned: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  storage: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  disposed: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
-  lost: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-};
+export const STATUS_TONES = { active: 'green', maintenance: 'amber', loaned: 'blue', storage: 'slate', disposed: 'dark', lost: 'red' };
+export const STATUS_STYLES = toneMap(STATUS_TONES);
 
 export const CONDITION_LABELS = {
   new: 'Novo',
@@ -61,14 +94,8 @@ export const CONDITION_LABELS = {
   damaged: 'Danificado'
 };
 
-export const CONDITION_STYLES = {
-  new: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  excellent: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  good: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  fair: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  poor: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  damaged: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
-};
+export const CONDITION_TONES = { new: 'teal', excellent: 'green', good: 'blue', fair: 'amber', poor: 'orange', damaged: 'red' };
+export const CONDITION_STYLES = toneMap(CONDITION_TONES);
 
 export const MOVEMENT_LABELS = {
   transfer: 'Transferência',
@@ -84,12 +111,8 @@ export const MAINTENANCE_LABELS = {
   cancelled: 'Cancelada'
 };
 
-export const MAINTENANCE_STYLES = {
-  open: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  cancelled: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-};
+export const MAINTENANCE_TONES = { open: 'amber', in_progress: 'blue', completed: 'green', cancelled: 'slate' };
+export const MAINTENANCE_STYLES = toneMap(MAINTENANCE_TONES);
 
 export const INVENTORY_STATUS_LABELS = {
   draft: 'Rascunho',
@@ -105,12 +128,11 @@ export const INV_ITEM_LABELS = {
   not_found: 'Não encontrado'
 };
 
-export const INV_ITEM_STYLES = {
-  pending: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  found: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  misplaced: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  not_found: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
-};
+export const INV_ITEM_TONES = { pending: 'slate', found: 'green', misplaced: 'amber', not_found: 'red' };
+export const INV_ITEM_STYLES = toneMap(INV_ITEM_TONES);
+
+export const INVENTORY_STATUS_TONES = { draft: 'slate', in_progress: 'blue', completed: 'green', cancelled: 'red' };
+export const INVENTORY_STATUS_STYLES = toneMap(INVENTORY_STATUS_TONES);
 
 export const DISPOSED_REASON_LABELS = {
   descarte: 'Descarte',

@@ -67,30 +67,30 @@ export default function Configuracoes() {
     <Layout>
       <PageHeader title="Configurações" description="Ajuste as preferências do sistema" />
       <div className="max-w-2xl space-y-6">
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-          <h3 className="font-semibold flex items-center gap-2"><Church className="w-4 h-4" /> Igreja</h3>
+        <div className="rounded-2xl border border-border bg-card shadow-card p-5 space-y-4">
+          <h3 className="text-lg font-bold flex items-center gap-2"><Church className="w-5 h-5 text-primary" /> Igreja</h3>
           <div><Label>Nome da igreja</Label><Input value={form.church_name || ''} onChange={(e) => set('church_name', e.target.value)} /></div>
           <div>
             <Label>Logo</Label>
             <div className="flex items-center gap-3">
               {form.church_logo_url ? <img src={form.church_logo_url} alt="" className="h-12 object-contain" /> : <div className="h-12 w-12 rounded bg-muted flex items-center justify-center"><Upload className="w-5 h-5 text-muted-foreground" /></div>}
               <input type="file" accept="image/*" onChange={handleLogo} className="text-sm" />
-              {uploading && <span className="text-xs text-muted-foreground">Enviando...</span>}
+              {uploading && <span className="text-sm text-muted-foreground">Enviando...</span>}
             </div>
           </div>
           <div>
             <Label>Cor de fundo do ícone</Label>
-            <p className="text-xs text-muted-foreground mb-1.5">Fundo do quadrado da logo na barra lateral. Cada unidade pode ter a sua em Unidades; quem não tiver usa esta.</p>
+            <p className="text-sm text-muted-foreground mb-2">Fundo do quadrado da logo na barra lateral. Cada unidade pode ter a sua em Unidades; quem não tiver usa esta.</p>
             <div className="flex items-center gap-3">
               <BrandMark logoUrl={form.church_logo_url} bgColor={form.logo_bg_color} className="w-12 h-12" iconClassName="w-6 h-6" />
-              <input type="color" value={form.logo_bg_color || '#111827'} onChange={(e) => set('logo_bg_color', e.target.value)} className="h-9 w-14 cursor-pointer rounded border border-input bg-transparent" />
+              <input type="color" value={form.logo_bg_color || '#111827'} onChange={(e) => set('logo_bg_color', e.target.value)} className="h-11 w-16 cursor-pointer rounded-lg border border-input bg-card p-1" />
               {form.logo_bg_color && <Button type="button" size="sm" variant="ghost" onClick={() => set('logo_bg_color', '')}>Usar cor padrão</Button>}
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-          <h3 className="font-semibold">Patrimônio</h3>
+        <div className="rounded-2xl border border-border bg-card shadow-card p-5 space-y-4">
+          <h3 className="text-lg font-bold">Patrimônio</h3>
           <div className="grid grid-cols-2 gap-4">
             <div><Label>Prefixo</Label><Input value={form.asset_prefix || ''} onChange={(e) => set('asset_prefix', e.target.value.toUpperCase())} placeholder="PAT" /></div>
             <div><Label>Quantidade de dígitos</Label><Input type="number" min={4} max={10} value={form.digit_count || 6} onChange={(e) => set('digit_count', e.target.value)} /></div>
@@ -101,19 +101,19 @@ export default function Configuracoes() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-          <h3 className="font-semibold">Consulta pública</h3>
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl border border-border bg-card shadow-card p-5 space-y-4">
+          <h3 className="text-lg font-bold">Consulta pública</h3>
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium">Consulta pública por QR Code</p>
-              <p className="text-xs text-muted-foreground">Permite abrir a ficha do patrimônio sem login (informações limitadas)</p>
+              <p className="text-[15px] font-semibold">Consulta pública por QR Code</p>
+              <p className="text-sm text-muted-foreground">Permite abrir a ficha do patrimônio sem login (informações limitadas)</p>
             </div>
             <Switch checked={form.public_asset_lookup || false} onCheckedChange={(v) => set('public_asset_lookup', v)} />
           </div>
         </div>
 
         <Button onClick={save} disabled={saving || uploading}>
-          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save />}
           {saving ? 'Salvando...' : 'Salvar configurações'}
         </Button>
       </div>

@@ -10,12 +10,14 @@ import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { AssetStatusBadge, AssetConditionBadge, AssetBadgeSummary, countBy } from '@/components/AssetBadges';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Package, Printer, Search, Eye, ArrowLeft, Trash2, Pencil, ArrowLeftRight, Tag, Loader2 } from 'lucide-react';
+import { Ellipsis, Package, Printer, Search, Eye, ArrowLeft, Trash2, Pencil, ArrowLeftRight, Tag, Loader2 } from 'lucide-react';
 import { formatDate, MOVEMENT_LABELS, STATUS_LABELS, CONDITION_LABELS } from '@/lib/format';
 import { canDeleteAsset, canEditAsset, canMoveAsset } from '@/lib/permissions';
 import { toast } from 'sonner';
@@ -231,44 +233,50 @@ export default function PatrimonioLote() {
   return (
     <Layout>
       <PageHeader title={first.name} description={`Lote com ${units.length} itens`}>
-        <Button variant="outline" onClick={() => navigate('/patrimonios')}><ArrowLeft className="w-4 h-4 mr-2" /> Voltar</Button>
-        {canEditAsset(user) && (
-          <Button variant="outline" onClick={() => navigate(`/patrimonios/lote/${batchId}/editar`)}><Pencil className="w-4 h-4 mr-2" /> Editar lote</Button>
-        )}
         {canMoveAsset(user) && (
-          <Button variant="outline" onClick={openQuantityMove}><ArrowLeftRight className="w-4 h-4 mr-2" /> Movimentar</Button>
+          <Button variant="outline" onClick={openQuantityMove}><ArrowLeftRight /> Movimentar</Button>
         )}
-        <Button onClick={() => navigate(`/etiquetas?batch_id=${batchId}`)}><Printer className="w-4 h-4 mr-2" /> Imprimir etiquetas</Button>
-        {canDeleteAsset(user) && (
-          <Button variant="destructive" onClick={() => setDeleteScope('all')}><Trash2 className="w-4 h-4 mr-2" /> Excluir lote inteiro</Button>
+        {canEditAsset(user) && (
+          <Button onClick={() => navigate(`/patrimonios/lote/${batchId}/editar`)}><Pencil /> Editar lote</Button>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" aria-label="Mais ações"><Ellipsis /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onSelect={() => navigate(`/etiquetas?batch_id=${batchId}`)}><Printer /> Imprimir etiquetas</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => navigate('/patrimonios')}><ArrowLeft /> Voltar para a lista</DropdownMenuItem>
+            {canDeleteAsset(user) && <DropdownMenuSeparator />}
+            {canDeleteAsset(user) && <DropdownMenuItem onSelect={() => setDeleteScope('all')} className="text-destructive focus:text-destructive"><Trash2 /> Excluir lote inteiro</DropdownMenuItem>}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </PageHeader>
 
-      <div className="rounded-xl border border-border bg-card p-4 mb-4 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-        <div><p className="text-muted-foreground">Categoria</p><p className="font-medium">{first.category_name || '-'}</p></div>
-        <div><p className="text-muted-foreground">Total de itens</p><p className="font-medium">{units.length}</p></div>
+      <dl className="rounded-2xl border border-border bg-card shadow-card p-5 mb-5 grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+        <div><dt className="text-sm text-muted-foreground">Categoria</dt><dd className="text-[15px] font-semibold mt-0.5">{first.category_name || '-'}</dd></div>
+        <div><dt className="text-sm text-muted-foreground">Total de itens</dt><dd className="text-[15px] font-semibold mt-0.5 tnum">{units.length}</dd></div>
         <div className="col-span-2 md:col-span-1">
-          <p className="text-muted-foreground">Unidade</p>
-          <p className="font-medium">{byLocation.length === 1 ? byLocation[0][0] : byLocation.map(([label, count]) => `${label} (${count})`).join(', ')}</p>
+          <dt className="text-sm text-muted-foreground">Unidade</dt>
+          <dd className="text-[15px] font-semibold mt-0.5">{byLocation.length === 1 ? byLocation[0][0] : byLocation.map(([label, count]) => `${label} (${count})`).join(', ')}</dd>
         </div>
         <div>
-          <p className="text-muted-foreground mb-1">Status</p>
-          <AssetBadgeSummary kind="status" counts={countBy(units, 'status')} />
+          <dt className="text-sm text-muted-foreground mb-1">Status</dt>
+          <dd><AssetBadgeSummary kind="status" counts={countBy(units, 'status')} /></dd>
         </div>
         <div>
-          <p className="text-muted-foreground mb-1">Condição</p>
-          <AssetBadgeSummary kind="condition" counts={countBy(units, 'condition')} />
+          <dt className="text-sm text-muted-foreground mb-1">Condição</dt>
+          <dd><AssetBadgeSummary kind="condition" counts={countBy(units, 'condition')} /></dd>
         </div>
         <div className="col-span-2 md:col-span-1">
-          <p className="text-muted-foreground">Variantes</p>
-          <p className="font-medium">{byVariant.map(([label, count]) => `${label} (${count})`).join(', ')}</p>
+          <dt className="text-sm text-muted-foreground">Variantes</dt>
+          <dd className="text-[15px] font-semibold mt-0.5">{byVariant.map(([label, count]) => `${label} (${count})`).join(', ')}</dd>
         </div>
-      </div>
+      </dl>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative max-w-sm flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, variante, unidade, status..." className="pl-9" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground" aria-hidden="true" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Número, variante ou unidade" aria-label="Buscar no lote" className="pl-10" />
         </div>
         {canSelect && (
           <>
@@ -280,17 +288,17 @@ export default function PatrimonioLote() {
                 <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>Limpar seleção</Button>
                 {canMoveAsset(user) && (
                   <Button size="sm" variant="outline" onClick={() => setMoveScope('selected')}>
-                    <ArrowLeftRight className="w-4 h-4 mr-1" /> Movimentar ({selected.size})
+                    <ArrowLeftRight /> Movimentar ({selected.size})
                   </Button>
                 )}
                 {canEditAsset(user) && (
                   <Button size="sm" variant="outline" onClick={() => setStateScope('selected')}>
-                    <Tag className="w-4 h-4 mr-1" /> Alterar status/condição ({selected.size})
+                    <Tag /> Alterar status/condição ({selected.size})
                   </Button>
                 )}
                 {canDeleteAsset(user) && (
                   <Button size="sm" variant="destructive" onClick={() => setDeleteScope('selected')}>
-                    <Trash2 className="w-4 h-4 mr-1" /> Excluir selecionados ({selected.size})
+                    <Trash2 /> Excluir selecionados ({selected.size})
                   </Button>
                 )}
               </>
@@ -299,38 +307,38 @@ export default function PatrimonioLote() {
         )}
       </div>
 
-      <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-muted-foreground">
+      <div className="hidden md:block table-card">
+        <table>
+          <thead>
             <tr>
               {canSelect && (
-                <th className="px-4 py-3 w-8"><input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAllFiltered} /></th>
+                <th className="w-12"><Checkbox checked={allFilteredSelected} onCheckedChange={toggleSelectAllFiltered} aria-label="Selecionar todos" /></th>
               )}
-              <th className="text-left font-medium px-4 py-3">Número</th>
-              <th className="text-left font-medium px-4 py-3">Variante</th>
-              <th className="text-left font-medium px-4 py-3">Unidade</th>
-              <th className="text-left font-medium px-4 py-3">Status</th>
-              <th className="text-left font-medium px-4 py-3">Condição</th>
-              <th className="text-left font-medium px-4 py-3">Atualizado</th>
-              <th className="text-right font-medium px-4 py-3">Ações</th>
+              <th>Número</th>
+              <th>Variante</th>
+              <th>Unidade</th>
+              <th>Status</th>
+              <th>Condição</th>
+              <th className="hidden xl:table-cell">Atualizado</th>
+              <th className="text-right"><span className="sr-only">Ações</span></th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((u) => (
-              <tr key={u.id} className="border-t border-border hover:bg-accent/30">
+              <tr key={u.id}>
                 {canSelect && (
-                  <td className="px-4 py-3"><input type="checkbox" checked={selected.has(u.id)} onChange={() => toggle(u.id)} /></td>
+                  <td><Checkbox checked={selected.has(u.id)} onCheckedChange={() => toggle(u.id)} aria-label={`Selecionar ${u.asset_number}`} /></td>
                 )}
-                <td className="px-4 py-3 font-mono text-xs">{u.asset_number}</td>
-                <td className="px-4 py-3">{u.variant || '-'}</td>
-                <td className="px-4 py-3 text-muted-foreground">{u.location_name || '-'}{u.location_detail && <span className="block text-xs">{u.location_detail}</span>}</td>
-                <td className="px-4 py-3"><AssetStatusBadge status={u.status} /></td>
-                <td className="px-4 py-3"><AssetConditionBadge condition={u.condition} /></td>
-                <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(u.updated_date)}</td>
-                <td className="px-4 py-3">
+                <td><span className="asset-code">{u.asset_number}</span></td>
+                <td className="font-semibold">{u.variant || '-'}</td>
+                <td className="text-muted-foreground">{u.location_name || '-'}{u.location_detail && <span className="block text-xs">{u.location_detail}</span>}</td>
+                <td><AssetStatusBadge status={u.status} /></td>
+                <td><AssetConditionBadge condition={u.condition} /></td>
+                <td className="hidden xl:table-cell text-muted-foreground tnum">{formatDate(u.updated_date)}</td>
+                <td>
                   <div className="flex items-center justify-end gap-1">
-                    <Link to={`/p/${u.asset_number}`} className="p-1.5 rounded hover:bg-accent" title="Visualizar"><Eye className="w-4 h-4" /></Link>
-                    {canEditAsset(user) && <Link to={`/patrimonios/${u.id}/editar`} className="p-1.5 rounded hover:bg-accent" title="Editar item"><Pencil className="w-4 h-4" /></Link>}
+                    <Link to={`/p/${u.asset_number}`} className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" title="Visualizar" aria-label={`Ver ${u.asset_number}`}><Eye className="w-[18px] h-[18px]" /></Link>
+                    {canEditAsset(user) && <Link to={`/patrimonios/${u.id}/editar`} className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" title="Editar item" aria-label={`Editar ${u.asset_number}`}><Pencil className="w-[18px] h-[18px]" /></Link>}
                   </div>
                 </td>
               </tr>
@@ -342,13 +350,13 @@ export default function PatrimonioLote() {
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {filtered.map((u) => (
-          <div key={u.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-            {canSelect && <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggle(u.id)} className="shrink-0" />}
+          <div key={u.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card shadow-card p-3">
+            {canSelect && <Checkbox checked={selected.has(u.id)} onCheckedChange={() => toggle(u.id)} className="shrink-0" aria-label={`Selecionar ${u.asset_number}`} />}
             <Link to={`/p/${u.asset_number}`} className="flex flex-1 min-w-0 items-center justify-between gap-3 active:opacity-70">
               <div className="min-w-0">
-                <p className="font-mono text-xs text-muted-foreground">{u.asset_number}</p>
-                <p className="font-medium truncate">{u.variant || first.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{u.location_name || '-'}</p>
+                <p className="asset-code">{u.asset_number}</p>
+                <p className="font-bold truncate">{u.variant || first.name}</p>
+                <p className="text-sm text-muted-foreground truncate">{u.location_name || '-'}</p>
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <AssetStatusBadge status={u.status} />
@@ -419,7 +427,7 @@ export default function PatrimonioLote() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMoveScope(null)} disabled={working}>Cancelar</Button>
-            <Button onClick={handleMove} disabled={working}>{working && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Confirmar</Button>
+            <Button onClick={handleMove} disabled={working}>{working && <Loader2 className="animate-spin" />}Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -455,7 +463,7 @@ export default function PatrimonioLote() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStateScope(null)} disabled={working}>Cancelar</Button>
-            <Button onClick={handleState} disabled={working}>{working && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar</Button>
+            <Button onClick={handleState} disabled={working}>{working && <Loader2 className="animate-spin" />}Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

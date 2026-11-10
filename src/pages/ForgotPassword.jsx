@@ -37,8 +37,8 @@ export default function ForgotPassword() {
       title="Redefinir senha"
       subtitle="Enviaremos um link para você redefinir"
       footer={
-        <Link to="/login" className="text-primary font-medium hover:underline">
-          <ArrowLeft className="w-3 h-3 inline mr-1" />Voltar ao login
+        <Link to="/login" className="text-primary font-semibold hover:underline underline-offset-4">
+          <ArrowLeft className="w-4 h-4 inline mr-1 -mt-0.5" />Voltar ao login
         </Link>
       }
     >
@@ -48,7 +48,7 @@ export default function ForgotPassword() {
             Se existir uma conta com este e-mail, você receberá um link de redefinição em breve.
           </p>
           {devResetLink && (
-            <p className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-sm">
+            <p className="p-3.5 rounded-lg bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-700/25 text-sm">
               Modo local (sem e-mail real) —{" "}
               <Link to={devResetLink} className="font-medium underline">
                 clique aqui para redefinir sua senha
@@ -58,10 +58,10 @@ export default function ForgotPassword() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="email">E-mail</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground" aria-hidden="true" />
               <Input
                 id="email"
                 type="email"
@@ -75,10 +75,10 @@ export default function ForgotPassword() {
               />
             </div>
           </div>
-          <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
+          <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="animate-spin" />
                 Enviando...
               </>
             ) : (

@@ -12,14 +12,14 @@ function readableOn(hex) {
 }
 
 // Quadrado com o logo da igreja/filial. Sem cor definida, usa a cor primária
-// do tema (o visual de antes).
-export default function BrandMark({ logoUrl, bgColor, className = 'w-9 h-9', iconClassName = 'w-5 h-5' }) {
+// do tema.
+export default function BrandMark({ logoUrl, bgColor, className = 'w-10 h-10 rounded-xl', iconClassName = 'w-5 h-5' }) {
   return (
     <div
-      className={cn('rounded-lg flex items-center justify-center shrink-0 overflow-hidden', !bgColor && 'bg-primary text-primary-foreground', className)}
+      className={cn('flex items-center justify-center shrink-0 overflow-hidden', !bgColor && 'bg-primary text-primary-foreground', className)}
       style={bgColor ? { backgroundColor: bgColor, color: readableOn(bgColor) } : undefined}
     >
-      {logoUrl ? <img src={logoUrl} alt="" className="w-full h-full object-cover" /> : <Church className={iconClassName} />}
+      {logoUrl ? <img src={logoUrl} alt="" className="w-full h-full object-cover" /> : <Church className={iconClassName} aria-hidden="true" />}
     </div>
   );
 }

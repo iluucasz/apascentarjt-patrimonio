@@ -12,14 +12,24 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Plus, Search, Eye, Pencil, ImageIcon, Layers, Trash2 } from 'lucide-react';
-import { formatDate, STATUS_LABELS } from '@/lib/format';
+import { Package, Plus, Search, Eye, Pencil, ImageIcon, Layers, Trash2, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { STATUS_LABELS } from '@/lib/format';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import { Image } from '@/components/ui/image';
 import { canCreateAsset, canDeleteAsset } from '@/lib/permissions';
 import NovoPatrimonioDialog from '@/components/NovoPatrimonioDialog';
 import { toast } from 'sonner';
 
 const PAGE_SIZE = 12;
+
+// Miniatura do patrimônio (foto, ou ícone quando não há foto).
+function Thumb({ src, batch, className }) {
+  const Icon = batch ? Layers : ImageIcon;
+  return src
+    ? <Image src={src} className={`${className} shrink-0 rounded-xl object-cover`} fittingType="fill" />
+    : <div className={`${className} shrink-0 rounded-xl bg-accent flex items-center justify-center`}><Icon className="w-1/2 h-1/2 text-primary/60" aria-hidden="true" /></div>;
+}
 
 export default function Patrimonios() {
   const { categories, scopeLocations: locations, user } = useApp();
@@ -33,6 +43,8 @@ export default function Patrimonios() {
   const [condition, setCondition] = useState('all');
   const [page, setPage] = useState(1);
   const [novoOpen, setNovoOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = [status, category, location, condition].filter((v) => v !== 'all').length;
   const [selected, setSelected] = useState(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -143,43 +155,51 @@ export default function Patrimonios() {
       <PageHeader title="Patrimônios" description={`${filtered ? filtered.length : 0} bens cadastrados`}>
         {canCreateAsset(user) && (
           <Button onClick={() => setNovoOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Novo patrimônio
+            <Plus className="w-[18px] h-[18px]" /> Novo patrimônio
           </Button>
         )}
       </PageHeader>
 
-      <div className="rounded-xl border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <div className="relative md:col-span-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Buscar por número, nome, marca..." className="pl-9" />
+      <div className="rounded-2xl border border-border bg-card shadow-card p-4 mb-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-3">
+          <div className="flex gap-2 md:col-span-3 xl:col-span-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground" aria-hidden="true" />
+              <Input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Número, nome ou marca" aria-label="Buscar patrimônio" className="pl-10" />
+            </div>
+            <Button type="button" variant="outline" size="icon" className="md:hidden relative shrink-0" onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen} aria-label="Filtros">
+              <SlidersHorizontal className="w-[18px] h-[18px]" />
+              {activeFilters > 0 && <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">{activeFilters}</span>}
+            </Button>
           </div>
+          <div className={cn('grid gap-3 md:contents', !filtersOpen && 'hidden')}>
           <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
-            <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por status"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
               {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }}>
-            <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por categoria"><SelectValue placeholder="Categoria" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as categorias</SelectItem>
               {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={location} onValueChange={(v) => { setLocation(v); setPage(1); }}>
-            <SelectTrigger><SelectValue placeholder="Unidade" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por unidade"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as unidades</SelectItem>
               {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
             </SelectContent>
           </Select>
+          </div>
         </div>
       </div>
 
       {filtered === null ? (
-        <div className="space-y-2">{Array.from({length:6}).map((_,i)=><div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
+        <div className="space-y-3">{Array.from({length:6}).map((_,i)=><div key={i} className="h-20 rounded-2xl bg-muted animate-pulse" />)}</div>
       ) : current.length === 0 ? (
         <EmptyState icon={Package} title="Nenhum patrimônio encontrado" description="Ajuste os filtros ou cadastre um novo patrimônio." />
       ) : (
@@ -191,87 +211,68 @@ export default function Patrimonios() {
                 <>
                   <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>Limpar seleção</Button>
                   <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
-                    <Trash2 className="w-4 h-4 mr-1" /> Excluir selecionados ({selected.size})
+                    <Trash2 className="w-4 h-4" /> Excluir selecionados ({selected.size})
                   </Button>
                 </>
               )}
             </div>
           )}
 
-          {/* Desktop table */}
-          <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-muted-foreground">
+          {/* Computador: tabela */}
+          <div className="hidden xl:block table-card">
+            <table>
+              <thead>
                 <tr>
                   {canDeleteAsset(user) && (
-                    <th className="px-4 py-3 w-8"><input type="checkbox" checked={allCurrentSelected} onChange={toggleSelectAllCurrent} /></th>
+                    <th className="w-12"><Checkbox checked={allCurrentSelected} onCheckedChange={toggleSelectAllCurrent} aria-label="Selecionar todos desta página" /></th>
                   )}
-                  <th className="text-left font-medium px-4 py-3">Número</th>
-                  <th className="text-left font-medium px-4 py-3">Patrimônio</th>
-                  <th className="text-left font-medium px-4 py-3">Categoria</th>
-                  <th className="text-left font-medium px-4 py-3">Unidade</th>
-                  <th className="text-left font-medium px-4 py-3">Responsável</th>
-                  <th className="text-left font-medium px-4 py-3">Status</th>
-                  <th className="text-left font-medium px-4 py-3">Condição</th>
-                  <th className="text-left font-medium px-4 py-3">Atualizado</th>
-                  <th className="text-right font-medium px-4 py-3">Ações</th>
+                  <th>Número</th>
+                  <th>Patrimônio</th>
+                  <th>Categoria</th>
+                  <th>Unidade</th>
+                  <th className="hidden 2xl:table-cell">Responsável</th>
+                  <th>Status</th>
+                  <th className="hidden 2xl:table-cell">Condição</th>
+                  <th className="text-right"><span className="sr-only">Ações</span></th>
                 </tr>
               </thead>
               <tbody>
-                {current.map((a) => a.isBatch ? (
-                  <tr key={a.id} onClick={() => navigate(`/patrimonios/lote/${a.batch_id}`)} className="border-t border-border hover:bg-accent/30 cursor-pointer">
+                {current.map((a) => (
+                  <tr key={a.id} onClick={() => navigate(a.isBatch ? `/patrimonios/lote/${a.batch_id}` : `/p/${a.asset_number}`)} className="row-link">
                     {canDeleteAsset(user) && (
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <Checkbox checked={selected.has(a.id)} onCheckedChange={() => toggle(a.id)} aria-label={`Selecionar ${a.name}`} />
                       </td>
                     )}
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"><Layers className="w-3.5 h-3.5" /> Lote</span>
+                    <td>
+                      {a.isBatch
+                        ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Layers className="w-4 h-4" aria-hidden="true" /> Lote</span>
+                        : <span className="asset-code">{a.asset_number}</span>}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {a.photo_url ? <Image src={a.photo_url} className="w-8 h-8 rounded object-cover" fittingType="fill" /> : <div className="w-8 h-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>}
-                        <span className="font-medium">{a.name}</span>
-                        <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5 shrink-0">{a.count} itens</span>
+                    <td>
+                      <div className="flex items-center gap-3 min-w-[12rem]">
+                        <Thumb src={a.photo_url} batch={a.isBatch} className="w-10 h-10" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground leading-snug">
+                            {a.name}
+                            {a.isBatch && <span className="ml-2 align-middle rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-primary">{a.count} itens</span>}
+                            {!a.isBatch && a.variant && <span className="font-normal text-muted-foreground"> · {a.variant}</span>}
+                          </p>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.category_name || '-'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.locationCount > 1 ? `Várias unidades (${a.locationCount})` : a.location_name || '-'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.responsible_person || '-'}</td>
-                    <td className="px-4 py-3"><AssetBadgeSummary kind="status" counts={a.statusCounts} /></td>
-                    <td className="px-4 py-3"><AssetBadgeSummary kind="condition" counts={a.conditionCounts} /></td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(a.updated_date)}</td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="text-muted-foreground">{a.category_name || '-'}</td>
+                    <td className="text-muted-foreground min-w-[9rem]">
+                      {a.isBatch ? (a.locationCount > 1 ? `Várias unidades (${a.locationCount})` : a.location_name || '-') : (a.location_name || '-')}
+                      {!a.isBatch && a.location_detail && <span className="block text-xs">{a.location_detail}</span>}
+                    </td>
+                    <td className="hidden 2xl:table-cell text-muted-foreground">{a.responsible_person || '-'}</td>
+                    <td>{a.isBatch ? <AssetBadgeSummary kind="status" counts={a.statusCounts} /> : <AssetStatusBadge status={a.status} />}</td>
+                    <td className="hidden 2xl:table-cell">{a.isBatch ? <AssetBadgeSummary kind="condition" counts={a.conditionCounts} /> : <AssetConditionBadge condition={a.condition} />}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        <Link to={`/patrimonios/lote/${a.batch_id}`} className="p-1.5 rounded hover:bg-accent" title="Ver lote"><Eye className="w-4 h-4" /></Link>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  <tr key={a.id} onClick={() => navigate(`/p/${a.asset_number}`)} className="border-t border-border hover:bg-accent/30 cursor-pointer">
-                    {canDeleteAsset(user) && (
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
-                      </td>
-                    )}
-                    <td className="px-4 py-3 font-mono text-xs">{a.asset_number}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {a.photo_url ? <Image src={a.photo_url} className="w-8 h-8 rounded object-cover" fittingType="fill" /> : <div className="w-8 h-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>}
-                        <span className="font-medium">{a.name}</span>
-                        {a.variant && <span className="text-xs text-muted-foreground">· {a.variant}</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.category_name || '-'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.location_name || '-'}{a.location_detail && <span className="block text-xs">{a.location_detail}</span>}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.responsible_person || '-'}</td>
-                    <td className="px-4 py-3"><AssetStatusBadge status={a.status} /></td>
-                    <td className="px-4 py-3"><AssetConditionBadge condition={a.condition} /></td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(a.updated_date)}</td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
-                        <Link to={`/p/${a.asset_number}`} className="p-1.5 rounded hover:bg-accent" title="Visualizar"><Eye className="w-4 h-4" /></Link>
-                        {canCreateAsset(user) && <Link to={`/patrimonios/${a.id}/editar`} className="p-1.5 rounded hover:bg-accent" title="Editar"><Pencil className="w-4 h-4" /></Link>}
+                        <Link to={a.isBatch ? `/patrimonios/lote/${a.batch_id}` : `/p/${a.asset_number}`} className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" title={a.isBatch ? 'Ver lote' : 'Ver detalhes'} aria-label={a.isBatch ? 'Ver lote' : 'Ver detalhes'}><Eye className="w-[18px] h-[18px]" /></Link>
+                        {!a.isBatch && canCreateAsset(user) && <Link to={`/patrimonios/${a.id}/editar`} className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground" title="Editar" aria-label="Editar"><Pencil className="w-[18px] h-[18px]" /></Link>}
                       </div>
                     </td>
                   </tr>
@@ -280,48 +281,46 @@ export default function Patrimonios() {
             </table>
           </div>
 
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {current.map((a) => a.isBatch ? (
-              <Link key={a.id} to={`/patrimonios/lote/${a.batch_id}`} className="block rounded-xl border border-border bg-card p-3 active:bg-accent/30">
-                <div className="flex items-center gap-3">
-                  {a.photo_url ? <Image src={a.photo_url} className="w-12 h-12 rounded object-cover" fittingType="fill" /> : <div className="w-12 h-12 rounded bg-muted flex items-center justify-center"><Layers className="w-5 h-5 text-muted-foreground" /></div>}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Layers className="w-3 h-3" /> Lote · {a.count} itens</p>
-                    <p className="font-medium truncate">{a.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.locationCount > 1 ? 'Várias unidades' : a.location_name || '-'}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      <AssetBadgeSummary kind="status" counts={a.statusCounts} />
-                      <AssetBadgeSummary kind="condition" counts={a.conditionCounts} />
+          {/* Celular: cartões */}
+          <ul className="xl:hidden grid gap-3 md:grid-cols-2">
+            {current.map((a) => (
+              <li key={a.id}>
+                <Link to={a.isBatch ? `/patrimonios/lote/${a.batch_id}` : `/p/${a.asset_number}`} className="block rounded-2xl border border-border bg-card p-3.5 shadow-card active:bg-accent/50">
+                  <div className="flex items-start gap-3.5">
+                    <Thumb src={a.photo_url} batch={a.isBatch} className="w-14 h-14" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        {a.isBatch ? <><Layers className="w-3.5 h-3.5" aria-hidden="true" /> Lote · {a.count} itens</> : <span className="asset-code">{a.asset_number}</span>}
+                      </p>
+                      <p className="font-bold text-base leading-snug text-foreground mt-0.5">{a.name}{!a.isBatch && a.variant && <span className="font-normal text-muted-foreground"> · {a.variant}</span>}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">{a.category_name || 'Sem categoria'} · {a.isBatch ? (a.locationCount > 1 ? 'Várias unidades' : a.location_name || '-') : (a.location_name || '-')}</p>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ) : (
-              <Link key={a.id} to={`/p/${a.asset_number}`} className="block rounded-xl border border-border bg-card p-3 active:bg-accent/30">
-                <div className="flex items-center gap-3">
-                  {a.photo_url ? <Image src={a.photo_url} className="w-12 h-12 rounded object-cover" fittingType="fill" /> : <div className="w-12 h-12 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-5 h-5 text-muted-foreground" /></div>}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-mono text-xs text-muted-foreground">{a.asset_number}</p>
-                    <p className="font-medium truncate">{a.name}{a.variant && <span className="text-muted-foreground font-normal"> · {a.variant}</span>}</p>
-                    <p className="text-xs text-muted-foreground truncate">{a.category_name || '-'} · {a.location_name || '-'}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {a.isBatch ? (
+                      <>
+                        <AssetBadgeSummary kind="status" counts={a.statusCounts} />
+                        <AssetBadgeSummary kind="condition" counts={a.conditionCounts} />
+                      </>
+                    ) : (
+                      <>
+                        <AssetStatusBadge status={a.status} />
+                        <AssetConditionBadge condition={a.condition} />
+                      </>
+                    )}
                   </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <AssetStatusBadge status={a.status} />
-                    <AssetConditionBadge condition={a.condition} />
-                  </div>
-                </div>
-              </Link>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
-              <span className="text-sm text-muted-foreground">Página {page} de {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Próxima</Button>
-            </div>
+            <nav className="flex items-center justify-between gap-2 mt-6" aria-label="Paginação">
+              <Button variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft className="w-4 h-4" /> Anterior</Button>
+              <span className="text-sm text-muted-foreground tnum">Página <b className="text-foreground">{page}</b> de {totalPages}</span>
+              <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Próxima <ChevronRight className="w-4 h-4" /></Button>
+            </nav>
           )}
         </>
       )}

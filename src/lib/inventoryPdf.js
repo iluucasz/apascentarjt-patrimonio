@@ -79,7 +79,7 @@ export async function buildInventoryPdf(inventory, items) {
     ]),
     theme: 'striped',
     styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-    headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+    headStyles: { fillColor: [29, 82, 68], textColor: 255 },
     columnStyles: { 0: { cellWidth: 26, font: 'courier' }, 4: { cellWidth: 32 } },
     didParseCell: (data) => {
       if (data.section === 'body' && data.column.index === 4) {

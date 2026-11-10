@@ -154,7 +154,7 @@ export default function EditarLote() {
     <Layout>
       <PageHeader title="Editar lote" description={`${units.length} itens`} />
       <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="rounded-2xl border border-border bg-card shadow-card p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2"><Label>Nome do patrimônio *</Label><Input value={form.name} onChange={(e) => set('name', e.target.value)} required /></div>
             <div><Label>Categoria</Label><Select value={form.category_id} onValueChange={(v) => set('category_id', v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
@@ -167,7 +167,7 @@ export default function EditarLote() {
                   {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">Mudar a unidade registra uma transferência no histórico de cada item.</p>
+              <p className="text-sm text-muted-foreground mt-1.5">Mudar a unidade registra uma transferência no histórico de cada item.</p>
             </div>
             <div>
               <Label>Local</Label>
@@ -208,9 +208,9 @@ export default function EditarLote() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="rounded-2xl border border-border bg-card shadow-card p-5 space-y-4">
           <div>
-            <h3 className="font-semibold">{singleDefault ? 'Quantidade e foto' : 'Variantes, quantidades e fotos'}</h3>
+            <h3 className="text-lg font-bold">{singleDefault ? 'Quantidade e foto' : 'Variantes, quantidades e fotos'}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Aumentar a quantidade cria novos itens com números patrimoniais novos.
               {canReduce
@@ -233,7 +233,7 @@ export default function EditarLote() {
                     <p className="font-medium truncate">{rowLabel(r)}</p>
                   )}
                   <div className="mt-1"><PhotoPicker onChange={(e) => handleVariantPhoto(r.rowId, e)} disabled={!!uploadingKey} /></div>
-                  {uploadingKey === r.rowId && <p className="text-xs text-muted-foreground mt-1">Enviando...</p>}
+                  {uploadingKey === r.rowId && <p className="text-sm text-muted-foreground mt-1.5">Enviando...</p>}
                 </div>
                 <div className="w-24 shrink-0">
                   <Label className="text-xs">Quantidade</Label>
@@ -247,17 +247,17 @@ export default function EditarLote() {
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus className="w-4 h-4 mr-1" /> Adicionar variante</Button>
+            <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus /> Adicionar variante</Button>
             <div className="text-sm text-right">
               <p className="font-medium">Total: {total} ite{total === 1 ? 'm' : 'ns'}{total !== units.length && <span className="text-muted-foreground font-normal"> (antes {units.length})</span>}</p>
-              {added > 0 && <p className="text-xs text-emerald-600">+{added} ite{added === 1 ? 'm' : 'ns'} novo{added === 1 ? '' : 's'}</p>}
+              {added > 0 && <p className="text-xs text-emerald-700">+{added} ite{added === 1 ? 'm' : 'ns'} novo{added === 1 ? '' : 's'}</p>}
               {removed > 0 && <p className="text-xs text-destructive">−{removed} ite{removed === 1 ? 'm' : 'ns'} será{removed === 1 ? '' : 'ão'} excluído{removed === 1 ? '' : 's'}</p>}
             </div>
           </div>
         </div>
 
         <div className="flex gap-2">
-          <Button type="submit" disabled={saving || !!uploadingKey}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}{saving ? 'Salvando...' : 'Salvar'}</Button>
+          <Button type="submit" disabled={saving || !!uploadingKey}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save />}{saving ? 'Salvando...' : 'Salvar'}</Button>
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
         </div>
       </form>

@@ -10,7 +10,8 @@ import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Wrench, CheckCircle2 } from 'lucide-react';
-import { formatDate, formatCurrency, MAINTENANCE_LABELS, MAINTENANCE_STYLES } from '@/lib/format';
+import { formatDate, formatCurrency, MAINTENANCE_LABELS, MAINTENANCE_TONES } from '@/lib/format';
+import StatusPill from '@/components/StatusPill';
 import { canMaintainAsset, canViewFinancials } from '@/lib/permissions';
 
 export default function Manutencoes() {
@@ -34,30 +35,30 @@ export default function Manutencoes() {
 
   return (
     <Layout>
-      <PageHeader title="Manutenções" description="Acompanhe as manutenções dos patrimônios" />
+      <PageHeader title="Manutenções" description="Acompanhe os consertos e revisões dos patrimônios" />
       {items === null ? (
-        <div className="space-y-2">{Array.from({length:6}).map((_,i)=><div key={i} className="h-16 rounded bg-muted animate-pulse" />)}</div>
+        <div className="space-y-3">{Array.from({length:4}).map((_,i)=><div key={i} className="h-28 rounded-2xl bg-muted animate-pulse" />)}</div>
       ) : items.length === 0 ? (
-        <EmptyState icon={Wrench} title="Nenhuma manutenção registrada" />
+        <EmptyState icon={Wrench} title="Nenhuma manutenção registrada" description="Envie um patrimônio para manutenção pela ficha dele." />
       ) : (
-        <div className="space-y-3">
+        <ul className="space-y-3">
           {items.map((m) => (
-            <div key={m.id} className="rounded-xl border border-border bg-card p-4">
+            <li key={m.id} className="rounded-2xl border border-border bg-card shadow-card p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <Link to={`/p/${m.asset_number}`} className="text-sm font-medium hover:underline"><span className="font-mono">{m.asset_number}</span> · {m.asset_name}</Link>
-                  <p className="text-sm text-foreground mt-1">{m.description}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{m.provider || '-'} · {formatDate(m.start_date)}{m.end_date ? ` → ${formatDate(m.end_date)}` : ''}{canViewFinancials(user) && m.cost ? ` · ${formatCurrency(m.cost)}` : ''}</p>
-                  {m.notes && <p className="text-xs text-muted-foreground mt-1">{m.notes}</p>}
+                  <Link to={`/p/${m.asset_number}`} className="font-bold leading-snug hover:underline underline-offset-4">{m.asset_name} <span className="asset-code ml-1">{m.asset_number}</span></Link>
+                  <p className="text-[15px] text-foreground mt-1">{m.description}</p>
                 </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${MAINTENANCE_STYLES[m.status]}`}>{MAINTENANCE_LABELS[m.status]}</span>
-                  {m.status === 'open' && canMaintainAsset(user) && <Button size="sm" variant="outline" onClick={() => finish(m)}><CheckCircle2 className="w-4 h-4 mr-1" /> Concluir</Button>}
-                </div>
+                <StatusPill tone={MAINTENANCE_TONES[m.status]}>{MAINTENANCE_LABELS[m.status]}</StatusPill>
               </div>
-            </div>
+              <p className="text-sm text-muted-foreground mt-2">{m.provider || 'Sem prestador'} · {formatDate(m.start_date)}{m.end_date ? ` → ${formatDate(m.end_date)}` : ''}{canViewFinancials(user) && m.cost ? ` · ${formatCurrency(m.cost)}` : ''}</p>
+              {m.notes && <p className="text-sm text-muted-foreground mt-1">{m.notes}</p>}
+              {m.status === 'open' && canMaintainAsset(user) && (
+                <Button size="sm" variant="outline" className="mt-3" onClick={() => finish(m)}><CheckCircle2 /> Concluir manutenção</Button>
+              )}
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </Layout>
   );

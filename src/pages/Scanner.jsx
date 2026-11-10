@@ -7,6 +7,8 @@ import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { TONES } from '@/lib/format';
 import { AssetStatusBadge } from '@/components/AssetBadges';
 import { toast } from 'sonner';
 import { ScanLine, Keyboard, RefreshCw, CheckCircle2, XCircle, PackagePlus, Loader2 } from 'lucide-react';
@@ -114,32 +116,36 @@ export default function Scanner() {
 
   return (
     <Layout>
-      <PageHeader title="Scanner" description="Leia QR Code ou código de barras (Code 128) do patrimônio" />
+      <PageHeader title="Scanner" description="Leia o QR Code ou o código de barras da etiqueta" />
 
-      {!scanning && !result && (
-        <div className="max-w-md mx-auto text-center py-8">
-          <button onClick={startScan} className="w-full py-8 rounded-2xl bg-primary text-primary-foreground font-semibold text-lg flex flex-col items-center gap-3 active:scale-[0.98] transition-transform">
-            <ScanLine className="w-10 h-10" />
-            Escanear patrimônio
-          </button>
-          <p className="text-sm text-muted-foreground mt-4">Aponte para o QR Code ou código de barras</p>
-          <Button variant="outline" className="mt-4 w-full" onClick={() => setManual(true)}>
-            <Keyboard className="w-4 h-4 mr-2" /> Digitar código manualmente
+      {!scanning && !result && !manual && (
+        <div className="max-w-md mx-auto rounded-3xl border border-border bg-card shadow-card p-6 sm:p-8 text-center">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-accent text-primary">
+            <ScanLine className="w-12 h-12" aria-hidden="true" />
+          </div>
+          <h2 className="text-xl font-bold mt-5">Escanear patrimônio</h2>
+          <p className="text-[15px] text-muted-foreground mt-1.5">Aponte a câmera para a etiqueta do item e a ficha abre na hora.</p>
+          <Button size="lg" className="mt-6 w-full h-14 text-base" onClick={startScan}><ScanLine className="!size-6" /> Abrir câmera</Button>
+          <Button variant="outline" className="mt-3 w-full" onClick={() => setManual(true)}>
+            <Keyboard /> Digitar o código
           </Button>
         </div>
       )}
 
       {scanning && (
         <div className="max-w-md mx-auto">
-          <div id="qr-reader" ref={scannerRef} className="w-full rounded-xl overflow-hidden bg-black aspect-[3/4]" />
-          <p className="text-center text-sm text-muted-foreground mt-3">Aponte a câmera para o código...</p>
-          <Button variant="outline" className="mt-3 w-full" onClick={stopScan}><XCircle className="w-4 h-4 mr-2" /> Parar</Button>
+          <div id="qr-reader" ref={scannerRef} className="w-full rounded-2xl overflow-hidden bg-black aspect-[3/4]" />
+          <p className="text-center text-[15px] text-muted-foreground mt-3">Aponte a câmera para o código…</p>
+          <Button variant="outline" className="mt-3 w-full" onClick={stopScan}><XCircle /> Parar câmera</Button>
         </div>
       )}
 
       {manual && !scanning && !result && (
-        <form onSubmit={handleManual} className="max-w-md mx-auto space-y-3">
-          <Input value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="Ex: PAT-000127" autoFocus />
+        <form onSubmit={handleManual} className="max-w-md mx-auto space-y-4 rounded-3xl border border-border bg-card shadow-card p-6">
+          <div>
+            <Label htmlFor="scanner-code">Código do patrimônio</Label>
+            <Input id="scanner-code" value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="Ex: PAT-000127" autoFocus autoCapitalize="characters" />
+          </div>
           <div className="flex gap-2">
             <Button type="submit" className="flex-1">Consultar</Button>
             <Button type="button" variant="outline" onClick={() => setManual(false)}>Cancelar</Button>
@@ -148,29 +154,29 @@ export default function Scanner() {
       )}
 
       {loading && (
-        <div className="max-w-md mx-auto text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /><p className="text-sm text-muted-foreground mt-2">Consultando...</p></div>
+        <div className="max-w-md mx-auto text-center py-12" role="status" aria-live="polite"><Loader2 className="w-9 h-9 animate-spin mx-auto text-primary" /><p className="text-[15px] text-muted-foreground mt-3">Consultando…</p></div>
       )}
 
       {result && !loading && (
-        <div className="max-w-md mx-auto">
+        <div className="max-w-md mx-auto" role="status" aria-live="polite">
           {result.found ? (
-            <div className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-900/20 p-5 text-center">
-              <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-              <p className="font-semibold mt-2">Patrimônio encontrado</p>
-              <p className="font-mono text-lg font-bold mt-1">{result.asset.asset_number}</p>
-              <p className="text-muted-foreground">{result.asset.name}</p>
-              <div className="flex justify-center mt-2"><AssetStatusBadge status={result.asset.status} /></div>
-              <Button className="mt-4 w-full" onClick={() => navigate(`/p/${result.asset.asset_number}`)}>Abrir ficha do patrimônio</Button>
-              <Button variant="outline" className="mt-2 w-full" onClick={() => { setResult(null); startScan(); }}><RefreshCw className="w-4 h-4 mr-2" /> Escanear outro</Button>
+            <div className={`rounded-3xl p-6 text-center ${TONES.green}`}>
+              <CheckCircle2 className="w-14 h-14 mx-auto" aria-hidden="true" />
+              <p className="font-bold text-lg mt-2">Patrimônio encontrado</p>
+              <p className="font-mono text-2xl font-bold mt-2 tracking-tight">{result.asset.asset_number}</p>
+              <p className="text-lg mt-0.5">{result.asset.name}</p>
+              <div className="flex justify-center mt-3"><AssetStatusBadge status={result.asset.status} className="bg-card" /></div>
+              <Button size="lg" className="mt-5 w-full" onClick={() => navigate(`/p/${result.asset.asset_number}`)}>Abrir ficha do patrimônio</Button>
+              <Button variant="outline" className="mt-2 w-full" onClick={() => { setResult(null); startScan(); }}><RefreshCw /> Escanear outro</Button>
             </div>
           ) : (
-            <div className="rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-900/20 p-5 text-center">
-              <XCircle className="w-12 h-12 text-rose-600 mx-auto" />
-              <p className="font-semibold mt-2">Patrimônio não encontrado</p>
-              <p className="text-sm text-muted-foreground mt-1">Código lido:</p>
-              <p className="font-mono text-lg font-bold">{result.code}</p>
-              <Button variant="outline" className="mt-4 w-full" onClick={() => { setResult(null); startScan(); }}><RefreshCw className="w-4 h-4 mr-2" /> Tentar novamente</Button>
-              <Button className="mt-2 w-full" onClick={() => setNovoOpen(true)}><PackagePlus className="w-4 h-4 mr-2" /> Cadastrar patrimônio</Button>
+            <div className={`rounded-3xl p-6 text-center ${TONES.red}`}>
+              <XCircle className="w-14 h-14 mx-auto" aria-hidden="true" />
+              <p className="font-bold text-lg mt-2">Patrimônio não encontrado</p>
+              <p className="text-[15px] mt-1 opacity-90">Código lido</p>
+              <p className="font-mono text-2xl font-bold tracking-tight">{result.code}</p>
+              <Button variant="outline" className="mt-5 w-full bg-card" onClick={() => { setResult(null); startScan(); }}><RefreshCw /> Tentar novamente</Button>
+              <Button className="mt-2 w-full" onClick={() => setNovoOpen(true)}><PackagePlus /> Cadastrar patrimônio</Button>
             </div>
           )}
         </div>

@@ -39,6 +39,19 @@ movimentações, manutenções e permissões por papel (admin / manager / user).
   acesse `localStorage` diretamente fora de `src/lib/db.js`.
 - UI e mensagens de usuário em português (pt-BR); nomes de variáveis/funções em inglês.
 
+## Design (UI/UX)
+
+- Identidade "pasto": verde profundo (`--primary`) + neutros esverdeados. Todas as cores vêm de tokens
+  HSL em `src/index.css` (nunca hex solto em componente). Fonte Figtree; a escala de texto em
+  `tailwind.config.js` já está elevada (`text-sm` = 15px, `text-xs` = 13px): não use `text-[10px]`/`text-[11px]`.
+- Status e condições usam a paleta única `TONES` em `src/lib/format.js`, renderizada por
+  `src/components/StatusPill.jsx` (ponto + texto). Não crie classes `bg-emerald-100 text-emerald-700` novas.
+- Listas em tabela usam a classe `.table-card` (`src/index.css`); no celular (e até `xl`) vira lista de
+  cartões. Códigos de patrimônio usam `.asset-code`; números em colunas usam `.tnum`.
+- Mobile first: alvos de toque >= 44px (Button/Input/Select já são), navegação por barra inferior em
+  `src/components/Layout.jsx`, sem scroll horizontal, `100dvh` e `env(safe-area-inset-bottom)`.
+- Antes de entregar tela nova: conferir 390px, 768px e 1366px, foco visível por teclado e contraste AA.
+
 ## Rodando localmente
 
 ```bash

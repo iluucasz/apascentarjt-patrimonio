@@ -62,10 +62,23 @@ module.exports = {
   			}
   		},
   		fontFamily: {
+  			sans: ['var(--font-body)'],
   			heading: ['var(--font-heading)'],
   			body: ['var(--font-body)'],
   			display: ['var(--font-display)'],
   			mono: ['var(--font-mono)']
+  		},
+  		fontSize: {
+  			xs: ['0.8125rem', { lineHeight: '1.15rem' }],
+  			sm: ['0.9375rem', { lineHeight: '1.4rem' }],
+  			base: ['1rem', { lineHeight: '1.55rem' }]
+  		},
+  		boxShadow: {
+  			card: '0 1px 2px 0 hsl(160 20% 10% / 0.05), 0 1px 3px 0 hsl(160 20% 10% / 0.04)',
+  			pop: '0 8px 24px -6px hsl(160 25% 10% / 0.18), 0 2px 6px -2px hsl(160 25% 10% / 0.1)'
+  		},
+  		spacing: {
+  			'safe-b': 'env(safe-area-inset-bottom)'
   		},
   		keyframes: {
   			'accordion-down': {

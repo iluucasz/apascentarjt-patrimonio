@@ -3,89 +3,164 @@
 @tailwind utilities;
 
 @layer base {
+  /* Identidade "pasto": verde profundo + neutros esverdeados. Todos os pares
+     texto/fundo abaixo passam de 4.5:1 (AA). */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --background: 150 14% 96%;
+    --foreground: 162 24% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 162 24% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --font-heading: ui-sans-serif, system-ui, sans-serif;
-    --font-body: ui-sans-serif, system-ui, sans-serif;
-    --font-display: ui-sans-serif, system-ui, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --popover-foreground: 162 24% 10%;
+    --primary: 162 49% 22%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 16% 92%;
+    --secondary-foreground: 162 30% 16%;
+    --muted: 150 14% 93%;
+    --muted-foreground: 162 8% 36%;
+    --accent: 152 22% 91%;
+    --accent-foreground: 162 40% 16%;
+    --destructive: 0 68% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 11% 88%;
+    --input: 158 7% 62%;
+    --ring: 162 62% 34%;
+    --chart-1: 162 49% 28%;
+    --chart-2: 162 40% 42%;
+    --chart-3: 162 32% 58%;
+    --chart-4: 38 85% 50%;
+    --chart-5: 200 60% 45%;
+    --radius: 0.75rem;
+    --font-heading: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-body: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-display: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sidebar-background: 165 36% 11%;
+    --sidebar-foreground: 150 14% 82%;
+    --sidebar-primary: 156 45% 62%;
+    --sidebar-primary-foreground: 165 36% 9%;
+    --sidebar-accent: 165 28% 19%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 165 24% 20%;
+    --sidebar-ring: 156 45% 62%;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 165 24% 7%;
+    --foreground: 150 14% 94%;
+    --card: 165 22% 10%;
+    --card-foreground: 150 14% 94%;
+    --popover: 165 22% 10%;
+    --popover-foreground: 150 14% 94%;
+    --primary: 156 45% 62%;
+    --primary-foreground: 165 36% 9%;
+    --secondary: 165 18% 16%;
+    --secondary-foreground: 150 14% 94%;
+    --muted: 165 18% 15%;
+    --muted-foreground: 150 10% 68%;
+    --accent: 165 20% 18%;
+    --accent-foreground: 150 14% 94%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 165 16% 20%;
+    --input: 165 10% 40%;
+    --ring: 156 45% 62%;
+    --chart-1: 156 45% 62%;
+    --chart-2: 156 36% 48%;
+    --chart-3: 156 28% 36%;
+    --chart-4: 38 85% 58%;
+    --chart-5: 200 65% 60%;
+    --sidebar-background: 165 30% 8%;
+    --sidebar-foreground: 150 14% 82%;
+    --sidebar-primary: 156 45% 62%;
+    --sidebar-primary-foreground: 165 36% 9%;
+    --sidebar-accent: 165 22% 16%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 165 18% 16%;
+    --sidebar-ring: 156 45% 62%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-background text-foreground font-body;
+    @apply bg-background text-foreground font-body antialiased;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-heading;
+    text-wrap: balance;
+  }
+
+  /* Foco sempre visível para quem usa teclado */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Controles nativos (checkbox, radio, arquivo) com a cor da marca e área de toque decente */
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: hsl(var(--primary));
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  input[type="file"] {
+    @apply w-full text-sm text-muted-foreground;
+  }
+  input[type="file"]::file-selector-button {
+    @apply mr-3 h-10 cursor-pointer rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent;
+  }
+
+  /* Números alinhados em colunas (valores, contagens, códigos) */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Cartão-tabela: padrão único para todas as listas em tabela do app. */
+  .table-card {
+    @apply overflow-x-auto rounded-2xl border border-border bg-card shadow-card;
+  }
+  .table-card table {
+    @apply w-full text-sm;
+  }
+  .table-card thead th {
+    @apply whitespace-nowrap bg-muted/60 px-4 py-3 text-left text-xs font-semibold text-muted-foreground;
+  }
+  .table-card tbody tr {
+    @apply border-t border-border transition-colors;
+  }
+  .table-card tbody tr.row-link {
+    @apply cursor-pointer hover:bg-accent/50;
+  }
+  .table-card tbody td {
+    @apply px-4 py-3 align-middle;
+  }
+  .asset-code {
+    @apply whitespace-nowrap font-mono text-[13px] font-medium tracking-tight text-foreground/80;
   }
 }
 

@@ -31,18 +31,18 @@ export default function LocationPicker({ locations, value, onChange }) {
   }
 
   return (
-    <div className="max-h-64 overflow-y-auto rounded-lg border border-border p-2 space-y-0.5">
+    <div className="max-h-64 overflow-y-auto rounded-xl border border-border p-1.5 space-y-0.5">
       {tree.map(({ location: l, depth }) => {
         const inherited = coveredByParent(l);
         return (
           <label
             key={l.id}
-            className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent/50 ${inherited ? 'text-muted-foreground' : 'cursor-pointer'}`}
+            className={`flex items-center gap-2 rounded-lg px-2 py-2.5 text-[15px] hover:bg-accent/50 ${inherited ? 'text-muted-foreground' : 'cursor-pointer'}`}
             style={{ paddingLeft: `${0.5 + depth * 1.25}rem` }}
           >
             <input type="checkbox" checked={inherited || selected.has(l.id)} disabled={inherited} onChange={() => toggle(l.id)} />
             <span className="truncate">{l.name}</span>
-            {locationKind(locations, l) && <span className="text-[10px] uppercase tracking-wide text-muted-foreground ml-auto">{locationKind(locations, l) === 'matriz' ? 'Matriz' : 'Filial'}</span>}
+            {locationKind(locations, l) && <span className="text-xs font-semibold text-muted-foreground ml-auto">{locationKind(locations, l) === 'matriz' ? 'Matriz' : 'Filial'}</span>}
           </label>
         );
       })}

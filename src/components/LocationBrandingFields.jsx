@@ -54,9 +54,9 @@ export default function LocationBrandingFields({ value, onChange, inherited, inh
         </label>
         {value.logoMode === 'own' && (
           <div className="pl-6">
-            <input type="file" accept="image/*" onChange={handleLogo} className="text-sm w-full" />
-            {uploading && <p className="text-xs text-muted-foreground mt-1">Enviando...</p>}
-            {!uploading && !value.logo_url && <p className="text-xs text-muted-foreground mt-1">Sem arquivo, continua usando a logo {inheritLabel}.</p>}
+            <input type="file" accept="image/*" onChange={handleLogo} />
+            {uploading && <p className="text-sm text-muted-foreground mt-1.5">Enviando...</p>}
+            {!uploading && !value.logo_url && <p className="text-sm text-muted-foreground mt-1.5">Sem arquivo, continua usando a logo {inheritLabel}.</p>}
           </div>
         )}
       </div>

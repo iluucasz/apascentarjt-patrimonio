@@ -62,34 +62,32 @@ export default function Categorias() {
   return (
     <Layout>
       <PageHeader title="Categorias" description="Organize os patrimônios por categoria">
-        <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Nova categoria</Button>
+        <Button onClick={openNew}><Plus /> Nova categoria</Button>
       </PageHeader>
       {categories.length === 0 ? (
-        <EmptyState icon={Tags} title="Nenhuma categoria cadastrada" action={<Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Nova categoria</Button>} />
+        <EmptyState icon={Tags} title="Nenhuma categoria cadastrada" description="Categorias ajudam a agrupar os patrimônios (som, mobiliário, informática…)." action={<Button onClick={openNew}><Plus /> Nova categoria</Button>} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {categories.map((c) => (
-            <div key={c.id} className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-start justify-between">
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">{c.name}</p>
-                  {c.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{c.description}</p>}
-                </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{count(c.id)}</span>
+            <li key={c.id} className="flex flex-col rounded-2xl border border-border bg-card shadow-card p-4 sm:p-5">
+              <div className="mb-4 min-w-0">
+                <p className="font-bold text-lg leading-snug break-words">{c.name}</p>
+                {c.description && <p className="text-[15px] text-muted-foreground mt-1 line-clamp-2">{c.description}</p>}
               </div>
-              <div className="flex gap-1 mt-3">
-                <Button size="sm" variant="ghost" onClick={() => openEdit(c)}><Pencil className="w-4 h-4 mr-1" /> Editar</Button>
-                <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-600" onClick={() => setDeleteTarget(c)}><Trash2 className="w-4 h-4 mr-1" /> Excluir</Button>
+              <div className="mt-auto pt-3 border-t border-border flex items-center gap-1">
+                <p className="mr-auto text-[15px] text-muted-foreground tnum"><b className="text-foreground text-lg">{count(c.id)}</b> patrimônio{count(c.id) === 1 ? '' : 's'}</p>
+                <Button size="icon" variant="ghost" onClick={() => openEdit(c)} title="Editar" aria-label={`Editar ${c.name}`}><Pencil /></Button>
+                <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(c)} title="Excluir" aria-label={`Excluir ${c.name}`}><Trash2 /></Button>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? 'Editar categoria' : 'Nova categoria'}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm(f => ({...f, name: e.target.value}))} /></div>
             <div><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => setForm(f => ({...f, description: e.target.value}))} rows={2} /></div>
           </div>

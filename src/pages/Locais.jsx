@@ -131,49 +131,48 @@ export default function Locais() {
 
   return (
     <Layout>
-      <PageHeader title="Unidades" description="Unidade sem unidade pai é a matriz; as unidades dentro dela são as filiais e aparecem no seletor da barra lateral. Escolher a matriz mostra o patrimônio de todas.">
-        <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Nova unidade</Button>
+      <PageHeader title="Unidades" description="Uma unidade sem unidade pai é a matriz; as que ficam dentro dela são as filiais e aparecem no seletor do menu. Escolher a matriz mostra o patrimônio de todas.">
+        <Button onClick={openNew}><Plus className="w-[18px] h-[18px]" /> Nova unidade</Button>
       </PageHeader>
       {scopeLocations.length === 0 ? (
-        <EmptyState icon={MapPin} title="Nenhuma unidade cadastrada" action={<Button onClick={openNew}><Plus className="w-4 h-4 mr-2" /> Nova unidade</Button>} />
+        <EmptyState icon={MapPin} title="Nenhuma unidade cadastrada" description="Cadastre a igreja, as filiais e as salas onde o patrimônio fica." action={<Button onClick={openNew}><Plus className="w-[18px] h-[18px]" /> Nova unidade</Button>} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {tree.map(({ location: l }) => (
-            <div key={l.id} className={`rounded-xl border border-border bg-card p-4 ${l.active ? '' : 'opacity-60'}`}>
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex items-start gap-3">
-                  <BrandMark {...resolveBranding(locations, l.id, settings)} className="w-9 h-9" />
-                  <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="font-semibold break-words">{l.name}</p>
-                    {locationKind(locations, l) === 'matriz' && <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/10 text-primary">{multipleRoots && l.id === mainId ? 'Matriz principal' : 'Matriz'}</span>}
-                    {locationKind(locations, l) === 'filial' && <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Filial</span>}
+            <li key={l.id} className={`flex flex-col rounded-2xl border border-border bg-card shadow-card p-4 sm:p-5 ${l.active ? '' : 'opacity-60'}`}>
+              <div className="flex items-start gap-3.5 mb-4">
+                <BrandMark {...resolveBranding(locations, l.id, settings)} className="w-11 h-11 rounded-xl" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-lg leading-snug break-words">{l.name}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                    {locationKind(locations, l) === 'matriz' && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent text-primary">{multipleRoots && l.id === mainId ? 'Matriz principal' : 'Matriz'}</span>}
+                    {locationKind(locations, l) === 'filial' && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">Filial</span>}
+                    {!l.active && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Desativada</span>}
                   </div>
-                  {l.parent_location_name && <p className="text-xs text-muted-foreground">↳ {l.parent_location_name}</p>}
+                  {l.parent_location_name && <p className="text-sm text-muted-foreground mt-1.5">Dentro de {l.parent_location_name}</p>}
                   {l.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{l.description}</p>}
-                  </div>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{count(l.id)} patrim.</span>
               </div>
-              <div className="flex gap-1 mt-3">
-                <Button size="sm" variant="ghost" onClick={() => openEdit(l)} title="Editar"><Pencil className="w-4 h-4" /></Button>
-                <Button size="sm" variant="ghost" onClick={() => toggleActive(l)} title={l.active ? 'Desativar' : 'Ativar'}><Power className="w-4 h-4" /></Button>
+              <div className="mt-auto pt-3 border-t border-border flex items-center gap-1">
+                <p className="mr-auto text-[15px] text-muted-foreground tnum"><b className="text-foreground text-lg">{count(l.id)}</b> patrimônio{count(l.id) === 1 ? '' : 's'}</p>
+                <Button size="icon" variant="ghost" onClick={() => openEdit(l)} title="Editar" aria-label={`Editar ${l.name}`}><Pencil /></Button>
+                <Button size="icon" variant="ghost" onClick={() => toggleActive(l)} title={l.active ? 'Desativar' : 'Ativar'} aria-label={l.active ? `Desativar ${l.name}` : `Ativar ${l.name}`}><Power /></Button>
                 {isAdmin && multipleRoots && !l.parent_location_id && (
-                  <Button size="sm" variant="ghost" onClick={() => toggleMain(l)} title={l.is_main ? 'Deixar de ser a principal' : 'Tornar matriz principal'}>
-                    <Star className={`w-4 h-4 ${l.is_main ? 'fill-current text-amber-500' : ''}`} />
+                  <Button size="icon" variant="ghost" onClick={() => toggleMain(l)} title={l.is_main ? 'Deixar de ser a principal' : 'Tornar matriz principal'} aria-label={l.is_main ? 'Deixar de ser a matriz principal' : 'Tornar matriz principal'}>
+                    <Star className={l.is_main ? 'fill-current text-amber-500' : ''} />
                   </Button>
                 )}
-                <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-600" onClick={() => setDeleteTarget(l)} title="Excluir"><Trash2 className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(l)} title="Excluir" aria-label={`Excluir ${l.name}`}><Trash2 /></Button>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader><DialogTitle>{editing ? 'Editar unidade' : 'Nova unidade'}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm(f => ({...f, name: e.target.value}))} /></div>
             <div><Label>Unidade pai (opcional)</Label><Select value={form.parent_location_id || NO_PARENT} onValueChange={(v) => setForm(f => ({...f, parent_location_id: v === NO_PARENT ? '' : v}))}><SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger><SelectContent><SelectItem value={NO_PARENT}>Nenhum (é a matriz)</SelectItem>{scopeLocations.filter((l) => l.id !== editing?.id).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Descrição</Label><Textarea value={form.description} onChange={(e) => setForm(f => ({...f, description: e.target.value}))} rows={2} /></div>
